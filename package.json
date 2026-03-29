@@ -1,0 +1,32 @@
+{
+  "name": "electrolyte-dashboard",
+  "version": "2.0.0",
+  "description": "PCB Data Analysis Dashboard — Bajaj Auto Limited",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "@mui/material": "^5.15.0",
+    "@mui/icons-material": "^5.15.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "recharts": "^2.10.0",
+    "axios": "^1.6.0",
+    "pg": "^8.11.0",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5",
+    "d3": "^7.9.0",
+    "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "eslint-config-next": "14.2.0"
+  }
+}

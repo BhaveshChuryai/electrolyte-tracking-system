@@ -1,0 +1,19 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/map-analytics": "pages/map-analytics.js",
+  "/api/pcb-list": "pages/api/pcb-list.js",
+  "/api/status": "pages/api/status.js",
+  "/api/components": "pages/api/components.js",
+  "/api/trends": "pages/api/trends.js",
+  "/api/branches": "pages/api/branches.js",
+  "/dashboard": "pages/dashboard.js",
+  "/api/insights": "pages/api/insights.js",
+  "/api/kpis": "pages/api/kpis.js",
+  "/master-table": "pages/master-table.js",
+  "/api/pcb-detail": "pages/api/pcb-detail.js",
+  "/master-table/[part_code]": "pages/master-table/[part_code].js",
+  "/api/map-data": "pages/api/map-data.js",
+  "/analytics": "pages/analytics.js"
+}
