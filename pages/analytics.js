@@ -1,278 +1,223 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Head from 'next/head'
-import { Box, Typography, Grid, CircularProgress, Alert, Skeleton, FormControl, InputLabel, Select, MenuItem } from '@mui/material'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
+import { Alert, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Typography } from '@mui/material'
+import { useRouter } from 'next/router'
 import Layout from '../components/common/Layout'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
-const COLORS = ['#00e87a','#ff9500','#00b4ff','#a78bfa','#ff4d4d','#00ffcc','#ffdd00','#ff69b4']
-const TT = {
-  contentStyle: { background: '#0a1628', border: '1px solid rgba(0,180,255,0.2)', borderRadius: '10px', color: '#eaf3ff', fontSize: '0.75rem', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', padding: '10px 14px' }
+const PANEL_BORDER = '1px solid rgba(148, 163, 184, 0.14)'
+const CARD_BG = 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)'
+const COLORS = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa', '#f97316', '#ef4444']
+const tooltipStyle = {
+  contentStyle: {
+    background: '#f8fafc',
+    border: '1px solid rgba(15, 23, 42, 0.16)',
+    borderRadius: 14,
+    color: '#0f172a',
+    boxShadow: '0 18px 40px rgba(2, 8, 23, 0.22)',
+  },
+  labelStyle: { color: '#334155', fontWeight: 700 },
 }
 
-const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
-  if (percent < 0.05) return null
-  const r = innerRadius + (outerRadius - innerRadius) * 0.5
-  const x = cx + r * Math.cos(-midAngle * Math.PI / 180)
-  const y = cy + r * Math.sin(-midAngle * Math.PI / 180)
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={800}>
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  )
-}
+const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN')
 
-function Card({ title, sub, children, delay = 0 }) {
+function Card({ title, subtitle, children, minHeight = 320, actionLabel, onAction }) {
   return (
-    <Box sx={{ p: 2.5, borderRadius: '14px', background: 'linear-gradient(145deg, #0d1626, #111e35)', border: '1px solid rgba(255,255,255,0.06)', height: '100%', animation: `fadeUp 0.5s ease ${delay}s both`, '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(14px)' }, to: { opacity: 1, transform: 'translateY(0)' } } }}>
-      <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#eaf3ff', mb: 0.2 }}>{title}</Typography>
-      <Typography sx={{ fontSize: '0.65rem', color: 'rgba(120,160,210,0.4)', mb: 2.5 }}>{sub}</Typography>
+    <Box sx={{ p: 2.5, minHeight, height: '100%', borderRadius: 4, background: CARD_BG, border: PANEL_BORDER }}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
+        <Box>
+          <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '1rem' }}>{title}</Typography>
+          <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.4 }}>{subtitle}</Typography>
+        </Box>
+        {actionLabel ? (
+          <Button onClick={onAction} sx={{ color: '#cbd5e1', border: PANEL_BORDER, borderRadius: 999, textTransform: 'none', fontSize: '0.72rem', px: 1.3 }}>
+            {actionLabel}
+          </Button>
+        ) : null}
+      </Box>
       {children}
     </Box>
   )
 }
 
-function Empty({ h = 260 }) {
-  return (
-    <Box display="flex" alignItems="center" justifyContent="center" height={h} flexDirection="column" gap={1}>
-      <Typography sx={{ fontSize: '1.5rem', opacity: 0.2 }}>📊</Typography>
-      <Typography sx={{ fontSize: '0.72rem', color: 'rgba(120,160,210,0.25)', textAlign: 'center' }}>Upload data to see chart</Typography>
-    </Box>
-  )
-}
-
-function CardSk() {
-  return (
-    <Box sx={{ p: 2.5, borderRadius: '14px', background: '#0d1626', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <Skeleton variant="text" width="45%" height={22} sx={{ bgcolor: 'rgba(255,255,255,0.06)', mb: 0.5 }} />
-      <Skeleton variant="text" width="65%" height={16} sx={{ bgcolor: 'rgba(255,255,255,0.04)', mb: 2 }} />
-      <Skeleton variant="rounded" width="100%" height={260} sx={{ bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px' }} />
-    </Box>
-  )
-}
-
-const selSx = {
-  color: '#eaf3ff', borderRadius: '9px', background: 'rgba(255,255,255,0.04)', fontSize: '0.78rem',
-  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.08)' },
-  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,180,255,0.3)' },
-  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#00b4ff' },
-  '& .MuiSvgIcon-root': { color: 'rgba(120,160,210,0.5)' },
-}
-const mp = { PaperProps: { sx: { background: '#0d1626', border: '1px solid rgba(0,180,255,0.12)', borderRadius: '12px', '& .MuiMenuItem-root': { color: 'rgba(160,200,255,0.7)', fontSize: '0.8rem', '&:hover': { background: 'rgba(0,180,255,0.08)' }, '&.Mui-selected': { background: 'rgba(0,180,255,0.12)', color: '#00b4ff' } } } } }
-
 export default function AnalyticsPage() {
-  const [status, setStatus] = useState([])
-  const [components, setComponents] = useState([])
-  const [branches, setBranches] = useState([])
-  const [trends, setTrends] = useState([])
-  const [pcbList, setPcbList] = useState([])
+  const router = useRouter()
+  const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  // Filters
-  const [fPartCode, setFPartCode] = useState('all')
-  const [fStatus, setFStatus] = useState('all')
+  const [error, setError] = useState('')
+  const [partCode, setPartCode] = useState('all')
+  const [status, setStatus] = useState('all')
 
-  const fetchData = useCallback(async () => {
+  const loadData = async () => {
     setLoading(true)
-    const params = new URLSearchParams()
-    if (fPartCode !== 'all') params.append('part_code', fPartCode)
-    if (fStatus !== 'all') params.append('status', fStatus)
-    const q = params.toString() ? `?${params}` : ''
-
+    setError('')
     try {
-      const [s, c, b, t, p] = await Promise.allSettled([
-        fetch(`/api/status${q}`).then(r => r.json()),
-        fetch(`/api/components${q}&limit=15`).then(r => r.json()),
-        fetch(`/api/branches${q}&limit=20`).then(r => r.json()),
-        fetch(`/api/trends${q}`).then(r => r.json()),
-        fetch('/api/pcb-list').then(r => r.json()),
-      ])
-      if (s.status === 'fulfilled' && Array.isArray(s.value)) setStatus(s.value)
-      if (c.status === 'fulfilled' && Array.isArray(c.value)) setComponents(c.value)
-      if (b.status === 'fulfilled' && Array.isArray(b.value)) setBranches(b.value)
-      if (t.status === 'fulfilled' && Array.isArray(t.value)) setTrends(t.value)
-      if (p.status === 'fulfilled' && Array.isArray(p.value)) setPcbList(p.value)
-    } catch { setError('Failed to load analytics data') }
-    finally { setLoading(false) }
-  }, [fPartCode, fStatus])
+      const params = new URLSearchParams()
+      if (partCode !== 'all') params.set('part_code', partCode)
+      if (status !== 'all') params.set('status', status)
+      const response = await fetch(`/api/dashboard-overview?${params.toString()}`)
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Failed to load analytics')
+      setData(payload)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    loadData()
+  }, [partCode, status])
+
+  const statusData = (data?.status || []).map((item) => ({ ...item, value: Number(item.value || 0) }))
+  const trendData = data?.trends || []
+  const componentData = data?.components || []
+  const branchData = data?.topCities || []
+  const pcbData = data?.topPartCodes || []
 
   return (
     <>
-      <Head><title>Analytics — Electrolyte Bajaj</title></Head>
-      <Layout>
+      <Head><title>Analytics - Electrolyte Bajaj</title></Head>
+      <Layout onRefresh={loadData}>
         <Box>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
             <Box>
-              <Typography sx={{ fontSize: '1.4rem', fontWeight: 800, color: '#eaf3ff', letterSpacing: '-0.5px', mb: 0.3 }}>Analytics & Insights</Typography>
-              <Typography sx={{ fontSize: '0.72rem', color: 'rgba(120,160,210,0.45)' }}>Deep dive into PCB repair data patterns</Typography>
+              <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, color: '#f8fafc', mb: 0.3 }}>Analytics & Insights</Typography>
+              <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>Faster analytics view powered by a single overview API call and fixed chart boundaries.</Typography>
             </Box>
-            {/* Filters */}
-            <Box display="flex" gap={1.5} alignItems="center">
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel sx={{ color: 'rgba(120,160,210,0.45)', fontSize: '0.78rem' }}>PCB Code</InputLabel>
-                <Select value={fPartCode} label="PCB Code" onChange={e => setFPartCode(e.target.value)} sx={selSx} MenuProps={mp}>
+            <Stack direction="row" spacing={1.2} flexWrap="wrap" useFlexGap>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel sx={{ color: '#94a3b8', fontSize: '0.78rem' }}>PCB Code</InputLabel>
+                <Select value={partCode} label="PCB Code" onChange={(event) => setPartCode(event.target.value)} sx={{ color: '#e2e8f0', borderRadius: 2.5, background: 'rgba(15, 23, 42, 0.92)', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148, 163, 184, 0.18)' } }}>
                   <MenuItem value="all">All PCBs</MenuItem>
-                  {pcbList.map(p => <MenuItem key={p.part_code} value={p.part_code}>{p.part_code}</MenuItem>)}
+                  {(data?.filters?.partCodes || []).map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
                 </Select>
               </FormControl>
               <FormControl size="small" sx={{ minWidth: 130 }}>
-                <InputLabel sx={{ color: 'rgba(120,160,210,0.45)', fontSize: '0.78rem' }}>Status</InputLabel>
-                <Select value={fStatus} label="Status" onChange={e => setFStatus(e.target.value)} sx={selSx} MenuProps={mp}>
+                <InputLabel sx={{ color: '#94a3b8', fontSize: '0.78rem' }}>Status</InputLabel>
+                <Select value={status} label="Status" onChange={(event) => setStatus(event.target.value)} sx={{ color: '#e2e8f0', borderRadius: 2.5, background: 'rgba(15, 23, 42, 0.92)', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148, 163, 184, 0.18)' } }}>
                   <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="OK">✅ OK</MenuItem>
-                  <MenuItem value="NFF">⚠️ NFF</MenuItem>
+                  <MenuItem value="OK">OK</MenuItem>
+                  <MenuItem value="NFF">NFF</MenuItem>
                 </Select>
               </FormControl>
-            </Box>
+              <Button onClick={() => router.push('/dashboard')} sx={{ color: '#f8fafc', background: 'rgba(56, 189, 248, 0.16)', border: '1px solid rgba(56, 189, 248, 0.26)', borderRadius: 999, textTransform: 'none', px: 1.5, '&:hover': { background: 'rgba(56, 189, 248, 0.24)' } }}>Open dashboard</Button>
+              {partCode !== 'all' ? <Button onClick={() => router.push(`/master-table/${partCode}`)} sx={{ color: '#f8fafc', background: 'rgba(34, 197, 94, 0.16)', border: '1px solid rgba(34, 197, 94, 0.24)', borderRadius: 999, textTransform: 'none', px: 1.5, '&:hover': { background: 'rgba(34, 197, 94, 0.24)' } }}>Open part code</Button> : null}
+            </Stack>
           </Box>
 
-          {error && <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px', background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.18)', color: '#ff4d4d', fontSize: '0.82rem' }}>{error}</Alert>}
+          {error ? <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3 }}>{error}</Alert> : null}
 
           <Grid container spacing={2}>
-
-            {/* Monthly Trends */}
             <Grid item xs={12}>
-              {loading ? <CardSk /> : (
-                <Card title="Monthly Repair Trends" sub="PCB repair volume over time — OK vs NFF" delay={0}>
-                  {trends.length === 0 ? <Empty h={240} /> : (
-                    <ResponsiveContainer width="100%" height={240}>
-                      <AreaChart data={trends} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                        <defs>
-                          {[['gOK','#00e87a'],['gNFF','#ff9500'],['gTot','#00b4ff']].map(([id,c]) => (
-                            <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={c} stopOpacity={0.22} />
-                              <stop offset="95%" stopColor={c} stopOpacity={0} />
-                            </linearGradient>
-                          ))}
-                        </defs>
-                        <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                        <XAxis dataKey="month" tick={{ fill: 'rgba(160,200,255,0.55)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: 'rgba(120,160,210,0.45)', fontSize: 11, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <Tooltip {...TT} formatter={(v, n) => [<span style={{ color: n==='OK'?'#00e87a':n==='NFF'?'#ff9500':'#00b4ff', fontWeight: 700 }}>{Number(v).toLocaleString()}</span>, n]} />
-                        <Legend wrapperStyle={{ color: 'rgba(160,200,255,0.5)', fontSize: 11 }} />
-                        <Area type="monotone" dataKey="total" name="Total" stroke="#00b4ff" strokeWidth={1.8} fill="url(#gTot)" dot={false} animationDuration={900} />
-                        <Area type="monotone" dataKey="ok_count" name="OK" stroke="#00e87a" strokeWidth={2.5} fill="url(#gOK)" dot={{ fill: '#00e87a', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} animationDuration={1000} />
-                        <Area type="monotone" dataKey="nff_count" name="NFF" stroke="#ff9500" strokeWidth={2.5} fill="url(#gNFF)" dot={{ fill: '#ff9500', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} animationDuration={1100} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </Card>
-              )}
+              <Card title="Monthly Repair Trends" subtitle="Linear chart keeps all lines inside the card without overshooting." actionLabel="Open dashboard" onAction={() => router.push('/dashboard')} minHeight={330}>
+                <Box sx={{ height: 250, overflow: 'hidden' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 6 }}>
+                      <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={34} />
+                      <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
+                      <Legend wrapperStyle={{ color: '#cbd5e1' }} />
+                      <Line type="linear" dataKey="total" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 2 }} name="Total" />
+                      <Line type="linear" dataKey="ok_count" stroke="#22c55e" strokeWidth={2.8} dot={{ r: 3 }} name="OK" />
+                      <Line type="linear" dataKey="nff_count" stroke="#f59e0b" strokeWidth={2.8} dot={{ r: 3 }} name="NFF" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Card>
             </Grid>
 
-            {/* Overall Status FIXED */}
             <Grid item xs={12} md={4}>
-              {loading ? <CardSk /> : (
-                <Card title="Overall Status" sub={`OK vs NFF ratio${fPartCode !== 'all' ? ` · PCB ${fPartCode}` : ''}`} delay={0.06}>
-                  {status.length === 0 ? <Empty /> : (
-                    <Box>
-                      <ResponsiveContainer width="100%" height={240}>
-                        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                          <Pie
-                            data={status}
-                            cx="50%" cy="45%"
-                            innerRadius={60} outerRadius={98}
-                            paddingAngle={4}
-                            dataKey="count"
-                            nameKey="status"
-                            labelLine={false}
-                            label={renderPieLabel}
-                            animationBegin={200}
-                            animationDuration={900}>
-                            {status.map((e, i) => (
-                              <Cell key={i} fill={e.status === 'OK' ? '#00e87a' : '#ff9500'} />
-                            ))}
-                          </Pie>
-                          <Tooltip {...TT} formatter={(v, n) => [<span style={{ color: n==='OK'?'#00e87a':'#ff9500', fontWeight: 700 }}>{Number(v).toLocaleString()} records</span>, n]} />
-                          <Legend wrapperStyle={{ paddingTop: 8, fontSize: 11 }}
-                            formatter={(val, e) => (
-                              <span style={{ color: 'rgba(160,200,255,0.65)', fontSize: 11 }}>
-                                {val}: <strong style={{ color: '#eaf3ff' }}>{Number(e.payload?.count||0).toLocaleString()}</strong>
-                                {e.payload?.percentage ? ` · ${e.payload.percentage}%` : ''}
-                              </span>
-                            )}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      {/* Stat pills */}
-                      <Box display="flex" gap={1} justifyContent="center" mt={0.5}>
-                        {status.map((s, i) => (
-                          <Box key={i} sx={{ px: 1.5, py: 0.6, borderRadius: '8px', background: s.status==='OK'?'rgba(0,232,122,0.08)':'rgba(255,149,0,0.08)', border: `1px solid ${s.status==='OK'?'rgba(0,232,122,0.2)':'rgba(255,149,0,0.2)'}`, textAlign: 'center' }}>
-                            <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: s.status==='OK'?'#00e87a':'#ff9500', fontFamily: "'DM Mono',monospace", lineHeight: 1.2 }}>{Number(s.count).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize: '0.6rem', color: 'rgba(160,200,255,0.45)', fontWeight: 600 }}>{s.status} · {s.percentage}%</Typography>
-                          </Box>
-                        ))}
-                      </Box>
+              <Card title="Overall Status" subtitle="OK vs NFF pie chart with visible center radius and parsed values." minHeight={360}>
+                <Box sx={{ height: 245 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={58} outerRadius={92} paddingAngle={4}>
+                        {statusData.map((item, index) => <Cell key={item.name} fill={index === 0 ? '#22c55e' : '#f59e0b'} />)}
+                      </Pie>
+                      <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
+                      <Legend wrapperStyle={{ color: '#cbd5e1', paddingTop: 14 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+                <Stack direction="row" spacing={1} justifyContent="center" useFlexGap flexWrap="wrap">
+                  {statusData.map((item) => (
+                    <Box key={item.name} sx={{ px: 1.4, py: 0.8, borderRadius: 2.5, background: item.name === 'OK' ? 'rgba(34, 197, 94, 0.10)' : 'rgba(245, 158, 11, 0.10)', border: item.name === 'OK' ? '1px solid rgba(34, 197, 94, 0.18)' : '1px solid rgba(245, 158, 11, 0.18)' }}>
+                      <Typography sx={{ color: item.name === 'OK' ? '#22c55e' : '#f59e0b', fontWeight: 700, fontSize: '0.96rem', textAlign: 'center' }}>{formatNumber(item.value)}</Typography>
+                      <Typography sx={{ color: '#94a3b8', fontSize: '0.7rem', mt: 0.25 }}>{item.name}</Typography>
                     </Box>
-                  )}
-                </Card>
-              )}
+                  ))}
+                </Stack>
+              </Card>
             </Grid>
 
-            {/* PCB Type Comparison */}
             <Grid item xs={12} md={8}>
-              {loading ? <CardSk /> : (
-                <Card title="PCB Type Comparison" sub="Total entries by PCB part code — OK vs NFF" delay={0.1}>
-                  {pcbList.length === 0 ? <Empty /> : (
-                    <ResponsiveContainer width="100%" height={280}>
-                      <BarChart data={pcbList} barSize={26} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                        <XAxis dataKey="part_code" tick={{ fill: 'rgba(160,200,255,0.55)', fontSize: 10, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: 'rgba(120,160,210,0.45)', fontSize: 10, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <Tooltip {...TT} formatter={(v, n) => [<span style={{ color: n==='OK'?'#00e87a':'#ff9500', fontWeight: 700 }}>{Number(v).toLocaleString()}</span>, n]} />
-                        <Legend wrapperStyle={{ color: 'rgba(160,200,255,0.5)', fontSize: 11 }} />
-                        <Bar dataKey="ok_count" name="OK" stackId="a" fill="#00e87a" animationDuration={800} />
-                        <Bar dataKey="nff_count" name="NFF" stackId="a" fill="#ff9500" radius={[4, 4, 0, 0]} animationDuration={900} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </Card>
-              )}
+              <Card title="PCB Type Comparison" subtitle="Clickable bars open the selected part code detail page." minHeight={360}>
+                <Box sx={{ height: 275 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={pcbData} barSize={26} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                      <XAxis dataKey="partCode" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+                      <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
+                      <Legend wrapperStyle={{ color: '#cbd5e1' }} />
+                      <Bar dataKey="ok" name="OK" stackId="a" fill="#22c55e" onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
+                      <Bar dataKey="nff" name="NFF" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Card>
             </Grid>
 
-            {/* Top Components — large */}
             <Grid item xs={12} md={6}>
-              {loading ? <CardSk /> : (
-                <Card title="Top Components Consumed" sub={`Most replaced components${fPartCode !== 'all' ? ` · PCB ${fPartCode}` : ' across all PCBs'}`} delay={0.14}>
-                  {components.length === 0 ? <Empty h={300} /> : (
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={components.slice(0, 13)} layout="vertical" barSize={14} margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                        <XAxis type="number" tick={{ fill: 'rgba(160,200,255,0.55)', fontSize: 10, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <YAxis dataKey="component" type="category" tick={{ fill: 'rgba(160,200,255,0.6)', fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
-                        <Tooltip {...TT} formatter={(v) => [<span style={{ color: '#00b4ff', fontWeight: 700 }}>{Number(v).toLocaleString()}</span>, 'Count']} />
-                        <Bar dataKey="total_count" name="Count" radius={[0, 4, 4, 0]} animationDuration={900}>
-                          {components.slice(0, 13).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </Card>
-              )}
+              <Card title="Top Components Consumed" subtitle="Fast horizontal bars with no extra API round trips." minHeight={380}>
+                <Box sx={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={componentData} layout="vertical" margin={{ top: 5, right: 10, left: 36, bottom: 5 }}>
+                      <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
+                      <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="component" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Usage']} />
+                      <Bar dataKey="total_count" radius={[0, 8, 8, 0]}>
+                        {componentData.map((item, index) => <Cell key={item.component} fill={COLORS[index % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Card>
             </Grid>
 
-            {/* Top Branches */}
             <Grid item xs={12} md={6}>
-              {loading ? <CardSk /> : (
-                <Card title="Top Service Branches" sub="Cities sending most PCBs for repair" delay={0.18}>
-                  {branches.length === 0 ? <Empty h={300} /> : (
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={branches.slice(0, 12)} layout="vertical" barSize={14} margin={{ left: 10, right: 24, top: 4, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                        <XAxis type="number" tick={{ fill: 'rgba(160,200,255,0.55)', fontSize: 10, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <YAxis dataKey="branch" type="category" tick={{ fill: 'rgba(160,200,255,0.6)', fontSize: 10 }} axisLine={false} tickLine={false} width={70} />
-                        <Tooltip {...TT} formatter={(v, n) => [<span style={{ color: n==='OK'?'#00e87a':'#ff9500', fontWeight: 700 }}>{Number(v).toLocaleString()}</span>, n]} />
-                        <Legend wrapperStyle={{ color: 'rgba(160,200,255,0.5)', fontSize: 11 }} />
-                        <Bar dataKey="ok_count" name="OK" stackId="a" fill="#00e87a" animationDuration={800} />
-                        <Bar dataKey="nff_count" name="NFF" stackId="a" fill="#ff9500" radius={[0, 4, 4, 0]} animationDuration={900} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </Card>
-              )}
+              <Card title="Top Service Branches" subtitle="City bars open the map analytics drill-down page." minHeight={380} actionLabel="Open map" onAction={() => router.push('/map-analytics')}>
+                <Box sx={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={branchData.map((item) => ({ ...item, branch: item.city || item.branch }))} layout="vertical" margin={{ top: 5, right: 10, left: 36, bottom: 5 }}>
+                      <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
+                      <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="branch" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'PCBs']} />
+                      <Bar dataKey="total" fill="#38bdf8" radius={[0, 8, 8, 0]} onClick={() => router.push('/map-analytics')} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Card>
             </Grid>
-
           </Grid>
         </Box>
       </Layout>

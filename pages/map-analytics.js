@@ -1,165 +1,234 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Head from 'next/head'
-import { Box, Typography, Grid, Chip, CircularProgress, Alert } from '@mui/material'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  Grid,
+  LinearProgress,
+  Stack,
+  Typography,
+} from '@mui/material'
 import Layout from '../components/common/Layout'
 import IndiaMap from '../components/map/IndiaMap'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-const TT = {
-  contentStyle: { background: '#0a1628', border: '1px solid rgba(0,180,255,0.2)', borderRadius: '10px', color: '#eaf3ff', fontSize: '0.75rem', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', padding: '10px 14px' },
-  formatter: (val, name) => {
-    const c = name === 'OK' ? '#00e87a' : '#ff9500'
-    return [<span style={{ color: c, fontWeight: 700 }}>{Number(val).toLocaleString()}</span>, name]
-  }
+const PANEL_BORDER = '1px solid rgba(148, 163, 184, 0.14)'
+const tooltipStyle = {
+  contentStyle: {
+    background: '#08111f',
+    border: PANEL_BORDER,
+    borderRadius: 14,
+    color: '#e2e8f0',
+  },
+  labelStyle: { color: '#94a3b8', fontWeight: 600 },
+}
+
+const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN')
+
+function MetricCard({ label, value, accent }) {
+  return (
+    <Box sx={{ p: 2, borderRadius: 4, border: PANEL_BORDER, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)' }}>
+      <Typography sx={{ color: accent, fontWeight: 800, fontSize: '1.45rem' }}>{value}</Typography>
+      <Typography sx={{ color: '#94a3b8', fontSize: '0.74rem', mt: 0.45 }}>{label}</Typography>
+    </Box>
+  )
+}
+
+function ListItemCard({ title, subtitle, metrics, onClick }) {
+  return (
+    <Box onClick={onClick} sx={{ p: 1.35, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)', cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { borderColor: 'rgba(56, 189, 248, 0.32)' } : undefined }}>
+      <Box display="flex" justifyContent="space-between" gap={2}>
+        <Box>
+          <Typography sx={{ color: '#f8fafc', fontWeight: 600, fontSize: '0.86rem' }}>{title}</Typography>
+          <Typography sx={{ color: '#94a3b8', fontSize: '0.74rem', mt: 0.4 }}>{subtitle}</Typography>
+        </Box>
+        <Box sx={{ textAlign: 'right' }}>
+          {metrics.map((metric) => (
+            <Typography key={metric.label} sx={{ color: metric.color, fontSize: '0.75rem', fontWeight: 600 }}>
+              {metric.label}: {metric.value}
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+  )
 }
 
 export default function MapAnalyticsPage() {
-  const [stateData, setStateData] = useState([])
-  const [cityData, setCityData] = useState(null)
-  const [selectedState, setSelectedState] = useState(null)
-  const [mapLoading, setMapLoading] = useState(true)
-  const [cityLoading, setCityLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [totalMapped, setTotalMapped] = useState(0)
+  const [mapData, setMapData] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [path, setPath] = useState({ level: 'india' })
 
-  useEffect(() => {
-    fetch('/api/map-data')
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) { setError(d.error); return }
-        setStateData(Array.isArray(d.states) ? d.states : [])
-        setTotalMapped(d.total_mapped || 0)
-      })
-      .catch(() => setError('Failed to load map data'))
-      .finally(() => setMapLoading(false))
-  }, [])
-
-  const handleStateClick = async (stateName) => {
-    setSelectedState(stateName)
-    setCityLoading(true)
-    setCityData(null)
+  const loadMap = async () => {
+    setLoading(true)
+    setError('')
     try {
-      const r = await fetch(`/api/map-data?state=${encodeURIComponent(stateName)}`)
-      const d = await r.json()
-      setCityData(d)
-    } catch { setCityData({ cities: [] }) }
-    finally { setCityLoading(false) }
+      const response = await fetch('/api/map-data?level=india')
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to load map analytics')
+      setMapData(data)
+      setDetail({ level: 'india', items: data.states, totalMapped: data.totalMapped })
+      setPath({ level: 'india' })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleBack = () => { setSelectedState(null); setCityData(null) }
+  const openLevel = async (nextPath) => {
+    setDetailLoading(true)
+    setPath(nextPath)
+    try {
+      const params = new URLSearchParams()
+      params.set('level', nextPath.level)
+      if (nextPath.state) params.set('state', nextPath.state)
+      if (nextPath.city) params.set('city', nextPath.city)
+      if (nextPath.partCode) params.set('part_code', nextPath.partCode)
+      const response = await fetch(`/api/map-data?${params.toString()}`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to load drill-down')
+      setDetail(data)
+    } catch (err) {
+      setDetail({ level: nextPath.level, error: err.message })
+    } finally {
+      setDetailLoading(false)
+    }
+  }
 
-  const chartData = selectedState && cityData?.cities
-    ? cityData.cities.slice(0, 10).map(c => ({ name: c.city, ok: c.ok, nff: c.nff }))
-    : stateData.slice(0, 10).map(s => ({ name: s.state.length > 8 ? s.state.slice(0, 8) + '…' : s.state, ok: s.ok, nff: s.nff }))
+  useEffect(() => { loadMap() }, [])
+
+  const summary =
+    detail?.level === 'india'
+      ? {
+          total: mapData?.totalMapped || 0,
+          ok: (mapData?.states || []).reduce((sum, item) => sum + item.ok, 0),
+          nff: (mapData?.states || []).reduce((sum, item) => sum + item.nff, 0),
+          okRate: mapData?.totalMapped ? (((mapData?.states || []).reduce((sum, item) => sum + item.ok, 0) / mapData.totalMapped) * 100).toFixed(1) : 0,
+        }
+      : detail?.state || detail?.city || detail?.summary
+
+  const chartRows =
+    detail?.level === 'india'
+      ? (mapData?.states || []).slice(0, 10).map((item) => ({ name: item.state, total: item.total }))
+      : detail?.level === 'state'
+        ? (detail?.cities || []).slice(0, 10).map((item) => ({ name: item.city, total: item.total }))
+        : detail?.level === 'city'
+          ? (detail?.partCodes || []).slice(0, 10).map((item) => ({ name: item.partCode, total: item.total }))
+          : (detail?.detail?.components || []).slice(0, 10).map((item) => ({ name: item.component, total: item.total_count }))
 
   return (
     <>
-      <Head><title>Map Analytics — Electrolyte Bajaj</title></Head>
-      <Layout>
+      <Head><title>Map Analytics - Electrolyte Bajaj</title></Head>
+      <Layout onRefresh={loadMap}>
         <Box>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
-            <Box>
-              <Typography sx={{ fontSize: '1.4rem', fontWeight: 800, color: '#eaf3ff', letterSpacing: '-0.5px', mb: 0.3 }}>Map Analytics</Typography>
-              <Typography sx={{ fontSize: '0.72rem', color: 'rgba(120,160,210,0.45)' }}>Geographic PCB repair distribution across India</Typography>
-            </Box>
-            <Box display="flex" gap={1.5}>
-              <Chip label={`${stateData.length} States`} size="small" sx={{ background: 'rgba(0,180,255,0.08)', border: '1px solid rgba(0,180,255,0.2)', color: '#00b4ff', fontSize: '0.62rem', height: 22 }} />
-              <Chip label={`${totalMapped.toLocaleString()} Mapped`} size="small" sx={{ background: 'rgba(0,232,122,0.08)', border: '1px solid rgba(0,232,122,0.18)', color: '#00e87a', fontSize: '0.62rem', height: 22 }} />
-            </Box>
+          <Box sx={{ p: { xs: 2.2, md: 3 }, borderRadius: 5, background: 'radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.12), transparent 22%), linear-gradient(180deg, #0f172a 0%, #08111f 100%)', border: PANEL_BORDER, mb: 2.5 }}>
+            <Typography sx={{ color: '#f8fafc', fontSize: { xs: '1.35rem', md: '1.8rem' }, fontWeight: 800 }}>India Map Analytics</Typography>
+            <Typography sx={{ color: '#94a3b8', fontSize: '0.86rem', mt: 0.7, maxWidth: 760 }}>Political-map style layout with state names on the map, density coloring, and a strict India to state to city to part code to components drill-down path.</Typography>
           </Box>
 
-          {error && (
-            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px', background: 'rgba(255,149,0,0.07)', border: '1px solid rgba(255,149,0,0.18)', color: '#ff9500', fontSize: '0.8rem' }}>
-              {stateData.length === 0 ? 'No mapped data. Upload Excel file first to see the India heatmap.' : error}
-            </Alert>
-          )}
+          {error ? <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3 }}>{error}</Alert> : null}
+          {loading ? <LinearProgress sx={{ mb: 2.5, borderRadius: 999 }} /> : null}
 
           <Grid container spacing={2}>
-            {/* Map */}
-            <Grid item xs={12} lg={7}>
-              <Box sx={{ p: 2.5, borderRadius: '14px', background: 'linear-gradient(145deg, #0d1626, #111e35)', border: '1px solid rgba(255,255,255,0.06)', minHeight: 580 }}>
-                <IndiaMap
-                  stateData={stateData}
-                  cityData={cityData}
-                  selectedState={selectedState}
-                  onStateClick={handleStateClick}
-                  onBack={handleBack}
-                  loading={mapLoading || cityLoading}
-                />
-              </Box>
-            </Grid>
-
-            {/* Right side */}
-            <Grid item xs={12} lg={5}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-                {/* Summary cards */}
-                <Grid container spacing={1.5}>
-                  {[
-                    { l: 'States Covered', v: stateData.length, c: '#00b4ff' },
-                    { l: 'PCBs Mapped', v: totalMapped.toLocaleString(), c: '#00e87a' },
-                    { l: 'Top State', v: stateData[0]?.state?.split(' ').slice(0,2).join(' ') || '—', c: '#a78bfa' },
-                    { l: 'Max Volume', v: stateData[0]?.total?.toLocaleString() || '0', c: '#ff9500' },
-                  ].map((card, i) => (
-                    <Grid item xs={6} key={i}>
-                      <Box sx={{ p: 1.8, borderRadius: '12px', background: 'linear-gradient(145deg, #0d1626, #111e35)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, color: card.c, fontFamily: "'DM Mono', monospace", mb: 0.2, lineHeight: 1.2 }}>{card.v}</Typography>
-                        <Typography sx={{ fontSize: '0.63rem', color: 'rgba(120,160,210,0.4)' }}>{card.l}</Typography>
-                      </Box>
-                    </Grid>
-                  ))}
+            <Grid item xs={12} lg={8}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <MetricCard label="States Covered" value={formatNumber(mapData?.states?.length)} accent="#38bdf8" />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <MetricCard label="Mapped PCBs" value={formatNumber(mapData?.totalMapped)} accent="#22c55e" />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <MetricCard label="Top State" value={mapData?.states?.[0]?.state || 'No data'} accent="#a78bfa" />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <MetricCard label="Top Volume" value={formatNumber(mapData?.states?.[0]?.total)} accent="#f59e0b" />
                 </Grid>
 
-                {/* Bar chart */}
-                <Box sx={{ p: 2.5, borderRadius: '14px', background: 'linear-gradient(145deg, #0d1626, #111e35)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: '#eaf3ff', mb: 0.2 }}>
-                    {selectedState ? `${selectedState} Cities` : 'Top States'}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.63rem', color: 'rgba(120,160,210,0.4)', mb: 2 }}>PCB count breakdown</Typography>
-                  {mapLoading || cityLoading ? (
-                    <Box display="flex" justifyContent="center" py={5}><CircularProgress sx={{ color: '#00b4ff' }} size={28} /></Box>
-                  ) : chartData.length === 0 ? (
-                    <Box textAlign="center" py={4}><Typography sx={{ color: 'rgba(120,160,210,0.25)', fontSize: '0.75rem' }}>No data available</Typography></Box>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={270}>
-                      <BarChart data={chartData} layout="vertical" barSize={13} margin={{ left: 10, right: 20, top: 4, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                        <XAxis type="number" tick={{ fill: 'rgba(160,200,255,0.55)', fontSize: 10, fontFamily: "'DM Mono',monospace" }} axisLine={false} tickLine={false} />
-                        <YAxis dataKey="name" type="category" tick={{ fill: 'rgba(160,200,255,0.6)', fontSize: 10 }} axisLine={false} tickLine={false} width={70} />
-                        <Tooltip {...TT} />
-                        <Bar dataKey="ok" name="OK" stackId="a" fill="#00e87a" animationDuration={800} />
-                        <Bar dataKey="nff" name="NFF" stackId="a" fill="#ff9500" radius={[0, 4, 4, 0]} animationDuration={900} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </Box>
+                <Grid item xs={12}>
+                  <Box sx={{ p: 2.4, borderRadius: 4, border: PANEL_BORDER, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)' }}>
+                    <IndiaMap states={mapData?.states || []} activeState={path.state} onStateClick={(state) => openLevel({ level: 'state', state })} />
+                  </Box>
+                </Grid>
 
-                {/* State ranking list */}
-                {!selectedState && stateData.length > 0 && (
-                  <Box sx={{ p: 2.5, borderRadius: '14px', background: 'linear-gradient(145deg, #0d1626, #111e35)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#eaf3ff', mb: 1.5 }}>State Rankings</Typography>
-                    <Box sx={{ maxHeight: 210, overflowY: 'auto', pr: 0.5 }}>
-                      {stateData.map((st, i) => {
-                        const r = parseFloat(st.ok_rate || 0)
-                        const rc = r >= 75 ? '#00e87a' : r >= 50 ? '#ff9500' : '#ff4d4d'
-                        return (
-                          <Box key={st.state} onClick={() => handleStateClick(st.state)}
-                            display="flex" alignItems="center" justifyContent="space-between"
-                            sx={{ py: 0.9, px: 1, borderRadius: '8px', mb: 0.3, cursor: 'pointer', transition: 'all 0.15s', '&:hover': { background: 'rgba(0,180,255,0.06)', transform: 'translateX(4px)' } }}>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Typography sx={{ fontSize: '0.6rem', color: 'rgba(100,140,190,0.3)', fontFamily: "'DM Mono',monospace", minWidth: 18 }}>{String(i+1).padStart(2,'0')}</Typography>
-                              <Typography sx={{ fontSize: '0.75rem', color: '#eaf3ff', fontWeight: 500 }}>{st.state}</Typography>
-                            </Box>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Typography sx={{ fontSize: '0.7rem', color: '#00b4ff', fontWeight: 700, fontFamily: "'DM Mono',monospace" }}>{st.total.toLocaleString()}</Typography>
-                              <Chip label={`${r}%`} size="small" sx={{ height: 17, fontSize: '0.57rem', fontWeight: 700, background: `${rc}12`, color: rc, border: `1px solid ${rc}22` }} />
-                            </Box>
-                          </Box>
-                        )
-                      })}
+                <Grid item xs={12}>
+                  <Box sx={{ p: 2.4, borderRadius: 4, border: PANEL_BORDER, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)' }}>
+                    <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '1rem' }}>{detail?.level === 'part-code' ? 'Component Consumption' : 'Hierarchy Volume'}</Typography>
+                    <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.45, mb: 2 }}>Each level uses a padded chart region so bars stay fully visible and readable.</Typography>
+                    <Box sx={{ height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartRows} layout="vertical" margin={{ top: 5, right: 10, left: 40, bottom: 5 }}>
+                          <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
+                          <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis dataKey="name" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), detail?.level === 'part-code' ? 'Usage' : 'PCBs']} />
+                          <Bar dataKey="total" fill={detail?.level === 'part-code' ? '#38bdf8' : '#22c55e'} radius={[0, 8, 8, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     </Box>
                   </Box>
-                )}
+                </Grid>
+              </Grid>
+            </Grid>
+
+            <Grid item xs={12} lg={4}>
+              <Box sx={{ p: 2.4, minHeight: 760, borderRadius: 4, border: PANEL_BORDER, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)' }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+                  <Button onClick={loadMap} sx={{ borderRadius: 999, border: PANEL_BORDER, color: '#cbd5e1', textTransform: 'none' }}>India</Button>
+                  {path.state ? <Button onClick={() => openLevel({ level: 'state', state: path.state })} sx={{ borderRadius: 999, border: PANEL_BORDER, color: '#cbd5e1', textTransform: 'none' }}>{path.state}</Button> : null}
+                  {path.city ? <Button onClick={() => openLevel({ level: 'city', state: path.state, city: path.city })} sx={{ borderRadius: 999, border: PANEL_BORDER, color: '#cbd5e1', textTransform: 'none' }}>{path.city}</Button> : null}
+                </Stack>
+
+                {detailLoading ? <LinearProgress sx={{ mb: 2, borderRadius: 999 }} /> : null}
+
+                <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '1rem' }}>
+                  {detail?.level === 'india' ? 'State View' : detail?.level === 'state' ? `${path.state} Cities` : detail?.level === 'city' ? `${path.city} Part Codes` : `Part Code ${detail?.summary?.partCode || path.partCode}`}
+                </Typography>
+                <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.45, mb: 2 }}>The right panel keeps the drill-down readable while the map stays uncluttered.</Typography>
+
+                {summary ? (
+                  <Grid container spacing={1.2} sx={{ mb: 2 }}>
+                    {[
+                      { label: 'Total', value: formatNumber(summary.total), color: '#f8fafc' },
+                      { label: 'OK', value: formatNumber(summary.ok), color: '#22c55e' },
+                      { label: 'NFF', value: formatNumber(summary.nff), color: '#f59e0b' },
+                      { label: 'OK Rate', value: `${summary.okRate || 0}%`, color: '#38bdf8' },
+                    ].map((metric) => (
+                      <Grid item xs={6} key={metric.label}>
+                        <Box sx={{ p: 1.4, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)' }}>
+                          <Typography sx={{ color: metric.color, fontWeight: 700, fontSize: '0.98rem' }}>{metric.value}</Typography>
+                          <Typography sx={{ color: '#94a3b8', fontSize: '0.72rem', mt: 0.4 }}>{metric.label}</Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : null}
+
+                <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.14)', mb: 2 }} />
+
+                <Stack spacing={1.05}>
+                  {detail?.level === 'india' && (mapData?.states || []).map((item) => (
+                    <ListItemCard key={item.state} title={item.state} subtitle="Click for city-wise PCB counts" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'state', state: item.state })} />
+                  ))}
+
+                  {detail?.level === 'state' && (detail?.cities || []).map((item) => (
+                    <ListItemCard key={item.city} title={item.city} subtitle="Click for part-code split" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'city', state: path.state, city: item.city })} />
+                  ))}
+
+                  {detail?.level === 'city' && (detail?.partCodes || []).map((item) => (
+                    <ListItemCard key={item.partCode} title={`Part Code ${item.partCode}`} subtitle={item.productDescription || 'PCB'} metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'part-code', state: path.state, city: path.city, partCode: item.partCode })} />
+                  ))}
+
+                  {detail?.level === 'part-code' && (detail?.detail?.components || []).map((item) => (
+                    <ListItemCard key={item.component} title={item.component} subtitle={item.description} metrics={[{ label: 'Usage', value: formatNumber(item.total_count), color: '#38bdf8' }]} />
+                  ))}
+                </Stack>
               </Box>
             </Grid>
           </Grid>
