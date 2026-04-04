@@ -27,6 +27,7 @@ export default async function handler(req, res) {
     const totalEntries = hierarchy.partCodes.reduce((sum, item) => sum + item.total, 0)
     const okCount = hierarchy.partCodes.reduce((sum, item) => sum + item.ok, 0)
     const nffCount = hierarchy.partCodes.reduce((sum, item) => sum + item.nff, 0)
+    const wipCount = hierarchy.partCodes.reduce((sum, item) => sum + item.wip, 0)
     const topState = hierarchy.states[0] || null
     const topCity = hierarchy.cities[0] || null
 
@@ -36,6 +37,7 @@ export default async function handler(req, res) {
         totalEntries,
         okCount,
         nffCount,
+        wipCount,
         topState: topState?.state || 'No data',
         topStateCount: topState?.total || 0,
         topCity: topCity?.city || 'No data',
@@ -45,6 +47,7 @@ export default async function handler(req, res) {
       status: [
         { name: 'OK', value: okCount },
         { name: 'NFF', value: nffCount },
+        { name: 'WIP', value: wipCount },
       ],
       trends: trendRows,
       components: componentRows,
@@ -55,6 +58,14 @@ export default async function handler(req, res) {
         partCodes: hierarchy.partCodes.map((item) => item.partCode),
       },
       lastUpload,
+      dataQuality: lastUpload
+        ? {
+            autoFixed: Number(lastUpload.auto_fixed || 0) + Number(lastUpload.fuzzy_fixed || 0),
+            flagged: Number(lastUpload.flagged || 0),
+            uploadedAt: lastUpload.uploaded_at,
+            originalName: lastUpload.original_name,
+          }
+        : null,
     })
   } catch (error) {
     console.error('Dashboard overview error:', error)

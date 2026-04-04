@@ -2,7 +2,7 @@ import pool from '../../lib/db'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
-  const { part_code, page = 1, limit = 10, branch, status } = req.query
+  const { part_code, page = 1, limit = 10, branch, status, component } = req.query
   if (!part_code) return res.status(400).json({ error: 'part_code required' })
 
   const offset = (parseInt(page) - 1) * parseInt(limit)
@@ -16,6 +16,10 @@ export default async function handler(req, res) {
   if (status && status !== 'all') {
     params.push(status)
     filterClause += ` AND status = $${params.length}`
+  }
+  if (component && component !== 'all') {
+    params.push(component)
+    filterClause += ` AND UPPER(COALESCE(component_change, '')) LIKE '%' || UPPER($${params.length}) || '%'`
   }
 
   try {
@@ -42,7 +46,8 @@ export default async function handler(req, res) {
       pool.query(`
         SELECT TRIM(branch) as branch, COUNT(*) as count,
         SUM(CASE WHEN status='OK' THEN 1 ELSE 0 END) as ok_count,
-        SUM(CASE WHEN status='NFF' THEN 1 ELSE 0 END) as nff_count
+        SUM(CASE WHEN status='NFF' THEN 1 ELSE 0 END) as nff_count,
+        SUM(CASE WHEN COALESCE(status, 'WIP') NOT IN ('OK', 'NFF') THEN 1 ELSE 0 END) as wip_count
         FROM pcb_data 
         WHERE part_code = $1 AND branch IS NOT NULL AND TRIM(branch) NOT IN ('NA','nan','')
         GROUP BY TRIM(branch) ORDER BY count DESC LIMIT 15

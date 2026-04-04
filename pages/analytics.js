@@ -22,6 +22,7 @@ import {
 const PANEL_BORDER = '1px solid rgba(148, 163, 184, 0.14)'
 const CARD_BG = 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)'
 const COLORS = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa', '#f97316', '#ef4444']
+const STATUS_COLORS = { OK: '#22c55e', NFF: '#f59e0b', WIP: '#a78bfa' }
 const tooltipStyle = {
   contentStyle: {
     background: '#f8fafc',
@@ -114,6 +115,7 @@ export default function AnalyticsPage() {
                   <MenuItem value="all">All Status</MenuItem>
                   <MenuItem value="OK">OK</MenuItem>
                   <MenuItem value="NFF">NFF</MenuItem>
+                  <MenuItem value="WIP">WIP</MenuItem>
                 </Select>
               </FormControl>
               <Button onClick={() => router.push('/dashboard')} sx={{ color: '#f8fafc', background: 'rgba(56, 189, 248, 0.16)', border: '1px solid rgba(56, 189, 248, 0.26)', borderRadius: 999, textTransform: 'none', px: 1.5, '&:hover': { background: 'rgba(56, 189, 248, 0.24)' } }}>Open dashboard</Button>
@@ -125,7 +127,7 @@ export default function AnalyticsPage() {
 
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <Card title="Monthly Repair Trends" subtitle="Linear chart keeps all lines inside the card without overshooting." actionLabel="Open dashboard" onAction={() => router.push('/dashboard')} minHeight={330}>
+              <Card title="Monthly Repair Trends" subtitle="Linear chart keeps OK, NFF, and WIP lines inside the card without overshooting." actionLabel="Open dashboard" onAction={() => router.push('/dashboard')} minHeight={330}>
                 <Box sx={{ height: 250, overflow: 'hidden' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 6 }}>
@@ -137,6 +139,7 @@ export default function AnalyticsPage() {
                       <Line type="linear" dataKey="total" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 2 }} name="Total" />
                       <Line type="linear" dataKey="ok_count" stroke="#22c55e" strokeWidth={2.8} dot={{ r: 3 }} name="OK" />
                       <Line type="linear" dataKey="nff_count" stroke="#f59e0b" strokeWidth={2.8} dot={{ r: 3 }} name="NFF" />
+                      <Line type="linear" dataKey="wip_count" stroke="#a78bfa" strokeWidth={2.8} dot={{ r: 3 }} name="WIP" />
                     </LineChart>
                   </ResponsiveContainer>
                 </Box>
@@ -144,12 +147,12 @@ export default function AnalyticsPage() {
             </Grid>
 
             <Grid item xs={12} md={4}>
-              <Card title="Overall Status" subtitle="OK vs NFF pie chart with visible center radius and parsed values." minHeight={360}>
+              <Card title="Overall Status" subtitle="OK, NFF, and WIP split with visible center radius and parsed values." minHeight={360}>
                 <Box sx={{ height: 245 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={58} outerRadius={92} paddingAngle={4}>
-                        {statusData.map((item, index) => <Cell key={item.name} fill={index === 0 ? '#22c55e' : '#f59e0b'} />)}
+                        {statusData.map((item) => <Cell key={item.name} fill={STATUS_COLORS[item.name] || '#38bdf8'} />)}
                       </Pie>
                       <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
                       <Legend wrapperStyle={{ color: '#cbd5e1', paddingTop: 14 }} />
@@ -158,8 +161,8 @@ export default function AnalyticsPage() {
                 </Box>
                 <Stack direction="row" spacing={1} justifyContent="center" useFlexGap flexWrap="wrap">
                   {statusData.map((item) => (
-                    <Box key={item.name} sx={{ px: 1.4, py: 0.8, borderRadius: 2.5, background: item.name === 'OK' ? 'rgba(34, 197, 94, 0.10)' : 'rgba(245, 158, 11, 0.10)', border: item.name === 'OK' ? '1px solid rgba(34, 197, 94, 0.18)' : '1px solid rgba(245, 158, 11, 0.18)' }}>
-                      <Typography sx={{ color: item.name === 'OK' ? '#22c55e' : '#f59e0b', fontWeight: 700, fontSize: '0.96rem', textAlign: 'center' }}>{formatNumber(item.value)}</Typography>
+                    <Box key={item.name} sx={{ px: 1.4, py: 0.8, borderRadius: 2.5, background: `${STATUS_COLORS[item.name] || '#38bdf8'}16`, border: `1px solid ${STATUS_COLORS[item.name] || '#38bdf8'}33` }}>
+                      <Typography sx={{ color: STATUS_COLORS[item.name] || '#38bdf8', fontWeight: 700, fontSize: '0.96rem', textAlign: 'center' }}>{formatNumber(item.value)}</Typography>
                       <Typography sx={{ color: '#94a3b8', fontSize: '0.7rem', mt: 0.25 }}>{item.name}</Typography>
                     </Box>
                   ))}
@@ -189,10 +192,10 @@ export default function AnalyticsPage() {
               <Card title="Top Components Consumed" subtitle="Fast horizontal bars with no extra API round trips." minHeight={380}>
                 <Box sx={{ height: 300 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={componentData} layout="vertical" margin={{ top: 5, right: 10, left: 36, bottom: 5 }}>
+                    <BarChart data={componentData} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                       <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
                       <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis dataKey="component" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="component" type="category" width={150} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Usage']} />
                       <Bar dataKey="total_count" radius={[0, 8, 8, 0]}>
                         {componentData.map((item, index) => <Cell key={item.component} fill={COLORS[index % COLORS.length]} />)}

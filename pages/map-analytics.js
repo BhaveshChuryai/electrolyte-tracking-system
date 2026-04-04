@@ -36,6 +36,23 @@ function MetricCard({ label, value, accent }) {
   )
 }
 
+function StatusLegend() {
+  return (
+    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
+      {[
+        { label: 'OK', color: '#22c55e' },
+        { label: 'NFF', color: '#f59e0b' },
+        { label: 'WIP', color: '#a78bfa' },
+      ].map((item) => (
+        <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.7, px: 1.1, py: 0.65, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)' }}>
+          <Box sx={{ width: 10, height: 10, borderRadius: '50%', background: item.color }} />
+          <Typography sx={{ color: '#cbd5e1', fontSize: '0.72rem', fontWeight: 600 }}>{item.label}</Typography>
+        </Box>
+      ))}
+    </Stack>
+  )
+}
+
 function ListItemCard({ title, subtitle, metrics, onClick }) {
   return (
     <Box onClick={onClick} sx={{ p: 1.35, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)', cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { borderColor: 'rgba(56, 189, 248, 0.32)' } : undefined }}>
@@ -109,6 +126,7 @@ export default function MapAnalyticsPage() {
           total: mapData?.totalMapped || 0,
           ok: (mapData?.states || []).reduce((sum, item) => sum + item.ok, 0),
           nff: (mapData?.states || []).reduce((sum, item) => sum + item.nff, 0),
+          wip: (mapData?.states || []).reduce((sum, item) => sum + item.wip, 0),
           okRate: mapData?.totalMapped ? (((mapData?.states || []).reduce((sum, item) => sum + item.ok, 0) / mapData.totalMapped) * 100).toFixed(1) : 0,
         }
       : detail?.state || detail?.city || detail?.summary
@@ -154,6 +172,7 @@ export default function MapAnalyticsPage() {
                 <Grid item xs={12}>
                   <Box sx={{ p: 2.4, borderRadius: 4, border: PANEL_BORDER, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)' }}>
                     <IndiaMap states={mapData?.states || []} activeState={path.state} onStateClick={(state) => openLevel({ level: 'state', state })} />
+                    <StatusLegend />
                   </Box>
                 </Grid>
 
@@ -198,6 +217,7 @@ export default function MapAnalyticsPage() {
                       { label: 'Total', value: formatNumber(summary.total), color: '#f8fafc' },
                       { label: 'OK', value: formatNumber(summary.ok), color: '#22c55e' },
                       { label: 'NFF', value: formatNumber(summary.nff), color: '#f59e0b' },
+                      { label: 'WIP', value: formatNumber(summary.wip), color: '#a78bfa' },
                       { label: 'OK Rate', value: `${summary.okRate || 0}%`, color: '#38bdf8' },
                     ].map((metric) => (
                       <Grid item xs={6} key={metric.label}>
@@ -214,15 +234,15 @@ export default function MapAnalyticsPage() {
 
                 <Stack spacing={1.05}>
                   {detail?.level === 'india' && (mapData?.states || []).map((item) => (
-                    <ListItemCard key={item.state} title={item.state} subtitle="Click for city-wise PCB counts" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'state', state: item.state })} />
+                    <ListItemCard key={item.state} title={item.state} subtitle="Click for city-wise PCB counts" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }, { label: 'WIP', value: formatNumber(item.wip), color: '#a78bfa' }]} onClick={() => openLevel({ level: 'state', state: item.state })} />
                   ))}
 
                   {detail?.level === 'state' && (detail?.cities || []).map((item) => (
-                    <ListItemCard key={item.city} title={item.city} subtitle="Click for part-code split" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'city', state: path.state, city: item.city })} />
+                    <ListItemCard key={item.city} title={item.city} subtitle="Click for part-code split" metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }, { label: 'WIP', value: formatNumber(item.wip), color: '#a78bfa' }]} onClick={() => openLevel({ level: 'city', state: path.state, city: item.city })} />
                   ))}
 
                   {detail?.level === 'city' && (detail?.partCodes || []).map((item) => (
-                    <ListItemCard key={item.partCode} title={`Part Code ${item.partCode}`} subtitle={item.productDescription || 'PCB'} metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }]} onClick={() => openLevel({ level: 'part-code', state: path.state, city: path.city, partCode: item.partCode })} />
+                    <ListItemCard key={item.partCode} title={`Part Code ${item.partCode}`} subtitle={item.productDescription || 'PCB'} metrics={[{ label: 'Total', value: formatNumber(item.total), color: '#f8fafc' }, { label: 'OK', value: formatNumber(item.ok), color: '#22c55e' }, { label: 'NFF', value: formatNumber(item.nff), color: '#f59e0b' }, { label: 'WIP', value: formatNumber(item.wip), color: '#a78bfa' }]} onClick={() => openLevel({ level: 'part-code', state: path.state, city: path.city, partCode: item.partCode })} />
                   ))}
 
                   {detail?.level === 'part-code' && (detail?.detail?.components || []).map((item) => (

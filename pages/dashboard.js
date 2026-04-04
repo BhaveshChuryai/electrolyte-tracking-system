@@ -17,6 +17,7 @@ import MemoryOutlinedIcon from '@mui/icons-material/MemoryOutlined'
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined'
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined'
 import FmdGoodOutlinedIcon from '@mui/icons-material/FmdGoodOutlined'
+import HourglassBottomOutlinedIcon from '@mui/icons-material/HourglassBottomOutlined'
 import { useRouter } from 'next/router'
 import Layout from '../components/common/Layout'
 import {
@@ -38,6 +39,7 @@ import {
 const PANEL_BORDER = '1px solid rgba(148, 163, 184, 0.14)'
 const CARD_BG = 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)'
 const COLORS = ['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa', '#f97316', '#ef4444']
+const STATUS_COLORS = { OK: '#22c55e', NFF: '#f59e0b', WIP: '#a78bfa' }
 const tooltipStyle = {
   contentStyle: {
     background: '#08111f',
@@ -65,6 +67,33 @@ function SectionCard({ title, subtitle, actionLabel, onAction, children, minHeig
         ) : null}
       </Box>
       {children}
+    </Box>
+  )
+}
+
+function DataQualityCard({ quality }) {
+  if (!quality) return null
+  return (
+    <Box sx={{ p: 2.2, borderRadius: 4, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)', border: PANEL_BORDER }}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={1.5}>
+        <Box>
+          <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.96rem' }}>Data Quality</Typography>
+          <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.35 }}>Latest upload learning summary</Typography>
+        </Box>
+        <Chip label={quality.originalName || 'Last upload'} size="small" sx={{ background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd', maxWidth: 220 }} />
+      </Box>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.2} useFlexGap flexWrap="wrap">
+        {[
+          { label: 'Auto-fixed', value: formatNumber(quality.autoFixed), color: '#22c55e' },
+          { label: 'Flagged', value: formatNumber(quality.flagged), color: '#f59e0b' },
+          { label: 'Uploaded', value: quality.uploadedAt ? new Date(quality.uploadedAt).toLocaleDateString('en-IN') : 'No data', color: '#38bdf8' },
+        ].map((item) => (
+          <Box key={item.label} sx={{ minWidth: 140, flex: '1 1 0', p: 1.3, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)' }}>
+            <Typography sx={{ color: item.color, fontWeight: 800, fontSize: '1rem' }}>{item.value}</Typography>
+            <Typography sx={{ color: '#94a3b8', fontSize: '0.72rem', mt: 0.35 }}>{item.label}</Typography>
+          </Box>
+        ))}
+      </Stack>
     </Box>
   )
 }
@@ -111,10 +140,11 @@ function DetailCard({ detail, loading, onOpenState, onOpenCity, onOpenPartCode, 
 
       {detail?.summary ? (
         <Grid container spacing={1.2} sx={{ mb: 2 }}>
-          {[
+          {[ 
             { label: 'Total', value: formatNumber(detail.summary.total), color: '#f8fafc' },
             { label: 'OK', value: formatNumber(detail.summary.ok), color: '#22c55e' },
             { label: 'NFF', value: formatNumber(detail.summary.nff), color: '#f59e0b' },
+            { label: 'WIP', value: formatNumber(detail.summary.wip), color: '#a78bfa' },
             { label: 'OK Rate', value: `${detail.summary.okRate || 0}%`, color: '#38bdf8' },
           ].map((metric) => (
             <Grid item xs={6} key={metric.label}>
@@ -140,6 +170,7 @@ function DetailCard({ detail, loading, onOpenState, onOpenCity, onOpenPartCode, 
                   <Typography sx={{ color: '#f8fafc', fontSize: '0.75rem', fontWeight: 600 }}>Total: {formatNumber(item.total)}</Typography>
                   <Typography sx={{ color: '#22c55e', fontSize: '0.75rem', fontWeight: 600 }}>OK: {formatNumber(item.ok)}</Typography>
                   <Typography sx={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>NFF: {formatNumber(item.nff)}</Typography>
+                  <Typography sx={{ color: '#a78bfa', fontSize: '0.75rem', fontWeight: 600 }}>WIP: {formatNumber(item.wip)}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -160,6 +191,7 @@ function DetailCard({ detail, loading, onOpenState, onOpenCity, onOpenPartCode, 
                   <Typography sx={{ color: '#f8fafc', fontSize: '0.75rem', fontWeight: 600 }}>Total: {formatNumber(item.total)}</Typography>
                   <Typography sx={{ color: '#22c55e', fontSize: '0.75rem', fontWeight: 600 }}>OK: {formatNumber(item.ok)}</Typography>
                   <Typography sx={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>NFF: {formatNumber(item.nff)}</Typography>
+                  <Typography sx={{ color: '#a78bfa', fontSize: '0.75rem', fontWeight: 600 }}>WIP: {formatNumber(item.wip)}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -180,6 +212,7 @@ function DetailCard({ detail, loading, onOpenState, onOpenCity, onOpenPartCode, 
                   <Typography sx={{ color: '#f8fafc', fontSize: '0.75rem', fontWeight: 600 }}>Total: {formatNumber(item.total)}</Typography>
                   <Typography sx={{ color: '#22c55e', fontSize: '0.75rem', fontWeight: 600 }}>OK: {formatNumber(item.ok)}</Typography>
                   <Typography sx={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>NFF: {formatNumber(item.nff)}</Typography>
+                  <Typography sx={{ color: '#a78bfa', fontSize: '0.75rem', fontWeight: 600 }}>WIP: {formatNumber(item.wip)}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -194,13 +227,13 @@ function DetailCard({ detail, loading, onOpenState, onOpenCity, onOpenPartCode, 
             <Button onClick={onOpenTable} sx={{ color: '#cbd5e1', border: PANEL_BORDER, borderRadius: 999, textTransform: 'none', px: 1.4 }}>Open part detail</Button>
           </Stack>
           <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.95rem', mb: 0.4 }}>Component Consumption</Typography>
-          <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mb: 1.8 }}>This is the largest section and stays inside its card to avoid overflow.</Typography>
-          <Box sx={{ height: 300, mb: 2.2 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={detail?.detail?.components || []} layout="vertical" margin={{ top: 5, right: 10, left: 40, bottom: 5 }}>
+                <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mb: 1.8 }}>This is the largest section and stays inside its card to avoid overflow.</Typography>
+                <Box sx={{ height: 300, mb: 2.2 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={detail?.detail?.components || []} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
                 <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis dataKey="component" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="component" type="category" width={150} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Usage']} />
                 <Bar dataKey="total_count" fill="#38bdf8" radius={[0, 8, 8, 0]} />
               </BarChart>
@@ -293,6 +326,7 @@ export default function DashboardPage() {
                   <MenuItem value="all">All Status</MenuItem>
                   <MenuItem value="OK">OK</MenuItem>
                   <MenuItem value="NFF">NFF</MenuItem>
+                  <MenuItem value="WIP">WIP</MenuItem>
                 </Select>
                 <Select size="small" value={filters.part_code} onChange={(event) => setFilters((current) => ({ ...current, part_code: event.target.value }))} sx={{ minWidth: 160, color: '#e2e8f0', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148, 163, 184, 0.18)' } }}>
                   <MenuItem value="all">All Part Codes</MenuItem>
@@ -313,6 +347,9 @@ export default function DashboardPage() {
           <Grid container spacing={2}>
             <Grid item xs={12} xl={8}>
               <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <DataQualityCard quality={overview?.dataQuality} />
+                </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
                   <KpiCard title="Total PCBs" value={formatNumber(overview?.kpis?.totalPcbs)} subtitle={`${formatNumber(overview?.kpis?.totalEntries)} total records`} accent="#38bdf8" icon={MemoryOutlinedIcon} onClick={() => openDetail({ level: 'dashboard' })} />
                 </Grid>
@@ -323,16 +360,19 @@ export default function DashboardPage() {
                   <KpiCard title="NFF Count" value={formatNumber(overview?.kpis?.nffCount)} subtitle="Inspect NFF-heavy part codes" accent="#f59e0b" icon={ReportProblemOutlinedIcon} onClick={() => openDetail({ level: 'dashboard', status: 'NFF' })} />
                 </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
+                  <KpiCard title="WIP Count" value={formatNumber(overview?.kpis?.wipCount)} subtitle="Track pending or empty-status records" accent="#a78bfa" icon={HourglassBottomOutlinedIcon} onClick={() => openDetail({ level: 'dashboard', status: 'WIP' })} />
+                </Grid>
+                <Grid item xs={12} sm={6} lg={3}>
                   <KpiCard title="Top State / City" value={overview?.kpis?.topState || 'No data'} subtitle={overview?.kpis?.topCity || 'No data'} accent="#a78bfa" icon={FmdGoodOutlinedIcon} onClick={() => openState(overview?.kpis?.topState)} />
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <SectionCard title="OK vs NFF" subtitle="Donut chart sized to stay fully visible" actionLabel="Open part codes" onAction={() => router.push(filters.part_code !== 'all' ? `/master-table/${filters.part_code}` : '/analytics')}>
+                  <SectionCard title="Status Split" subtitle="Donut chart sized to stay fully visible for OK, NFF, and WIP." actionLabel="Open part codes" onAction={() => router.push(filters.part_code !== 'all' ? `/master-table/${filters.part_code}` : '/analytics')}>
                     <Box sx={{ height: 290 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={overview?.status || []} dataKey="value" nameKey="name" innerRadius={72} outerRadius={108} paddingAngle={4}>
-                            {(overview?.status || []).map((entry, index) => <Cell key={entry.name} fill={index === 0 ? '#22c55e' : '#f59e0b'} />)}
+                            {(overview?.status || []).map((entry) => <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#38bdf8'} />)}
                           </Pie>
                           <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
                           <Legend wrapperStyle={{ color: '#cbd5e1', paddingTop: 16 }} />
@@ -354,6 +394,7 @@ export default function DashboardPage() {
                           <Legend wrapperStyle={{ color: '#cbd5e1' }} />
                           <Line type="linear" dataKey="ok_count" stroke="#22c55e" strokeWidth={3} dot={{ r: 3 }} name="OK" />
                           <Line type="linear" dataKey="nff_count" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} name="NFF" />
+                          <Line type="linear" dataKey="wip_count" stroke="#a78bfa" strokeWidth={3} dot={{ r: 3 }} name="WIP" />
                         </LineChart>
                       </ResponsiveContainer>
                     </Box>
@@ -364,10 +405,10 @@ export default function DashboardPage() {
                   <SectionCard title="Component Consumption" subtitle="Horizontal bars match enterprise-style readability." actionLabel={filters.part_code !== 'all' ? 'Open part detail' : 'Open part list'} onAction={() => router.push(filters.part_code !== 'all' ? `/master-table/${filters.part_code}` : '/master-table')}>
                     <Box sx={{ height: 310 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={overview?.components || []} layout="vertical" margin={{ top: 5, right: 10, left: 36, bottom: 5 }}>
+                        <BarChart data={overview?.components || []} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                           <CartesianGrid horizontal={false} stroke="rgba(148, 163, 184, 0.12)" />
                           <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis dataKey="component" type="category" width={110} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis dataKey="component" type="category" width={150} tick={{ fill: '#e2e8f0', fontSize: 11 }} axisLine={false} tickLine={false} />
                           <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Usage']} />
                           <Bar dataKey="total_count" radius={[0, 8, 8, 0]}>{(overview?.components || []).map((item, index) => <Cell key={item.component} fill={COLORS[index % COLORS.length]} />)}</Bar>
                         </BarChart>
