@@ -1,257 +1,88 @@
-import { useState, useCallback } from 'react'
-import { Box, Typography, CircularProgress } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import LocationOnIcon from '@mui/icons-material/LocationOn'
+import { useState } from 'react'
+import { Box, Typography } from '@mui/material'
 
-// Proper India map state paths using accurate geographic proportions
-// viewBox: 0 0 800 900
 const INDIA_STATES = [
-  { id:'Jammu & Kashmir',    ab:'J&K',   d:'M295,30 L370,22 L410,35 L420,58 L405,75 L375,82 L338,78 L310,65 L292,48Z' },
-  { id:'Himachal Pradesh',   ab:'HP',    d:'M338,78 L390,74 L402,95 L388,112 L362,116 L344,102Z' },
-  { id:'Punjab',             ab:'PB',    d:'M295,72 L340,78 L346,102 L326,115 L302,108 L290,90Z' },
-  { id:'Uttarakhand',        ab:'UK',    d:'M388,112 L432,105 L445,128 L425,140 L398,138Z' },
-  { id:'Haryana',            ab:'HR',    d:'M320,112 L360,108 L368,130 L346,140 L322,132Z' },
-  { id:'Delhi',              ab:'DL',    d:'M354,128 L368,126 L372,140 L358,143Z' },
-  { id:'Rajasthan',          ab:'RJ',    d:'M195,120 L320,118 L335,145 L330,215 L290,245 L240,255 L185,238 L162,205 L158,168Z' },
-  { id:'Uttar Pradesh',      ab:'UP',    d:'M368,128 L445,122 L488,138 L502,162 L492,198 L448,218 L392,225 L348,218 L335,195 L340,162 L352,142Z' },
-  { id:'Bihar',              ab:'BR',    d:'M492,158 L545,152 L562,170 L556,198 L522,212 L492,205Z' },
-  { id:'Sikkim',             ab:'SK',    d:'M568,145 L585,142 L589,158 L575,162Z' },
-  { id:'West Bengal',        ab:'WB',    d:'M556,172 L592,162 L612,185 L608,228 L588,252 L565,258 L548,238 L542,212Z' },
-  { id:'Jharkhand',          ab:'JH',    d:'M492,208 L548,205 L558,235 L540,265 L505,272 L478,258 L472,232Z' },
-  { id:'Odisha',             ab:'OD',    d:'M508,272 L565,262 L588,288 L580,332 L555,352 L520,358 L495,335 L488,305Z' },
-  { id:'Chhattisgarh',       ab:'CG',    d:'M375,235 L492,228 L505,262 L498,308 L462,328 L418,332 L388,312 L372,278Z' },
-  { id:'Madhya Pradesh',     ab:'MP',    d:'M238,252 L388,248 L392,282 L375,310 L330,328 L272,332 L228,318 L210,290 L215,262Z' },
-  { id:'Gujarat',            ab:'GJ',    d:'M105,215 L200,208 L218,245 L225,295 L205,335 L175,355 L135,360 L98,340 L78,305 L75,265 L90,235Z' },
-  { id:'Maharashtra',        ab:'MH',    d:'M185,335 L335,332 L348,368 L330,415 L295,442 L248,450 L205,438 L168,412 L152,378 L162,352Z' },
-  { id:'Goa',                ab:'GA',    d:'M188,445 L208,440 L215,458 L196,462Z' },
-  { id:'Karnataka',          ab:'KA',    d:'M162,415 L298,445 L315,482 L302,530 L268,558 L225,565 L185,548 L155,515 L145,478Z' },
-  { id:'Andhra Pradesh',     ab:'AP',    d:'M342,378 L502,358 L525,395 L510,445 L470,478 L422,488 L375,472 L338,442 L325,408Z' },
-  { id:'Telangana',          ab:'TS',    d:'M335,332 L498,312 L515,358 L470,380 L385,385 L342,368Z' },
-  { id:'Tamil Nadu',         ab:'TN',    d:'M270,562 L385,548 L418,578 L405,632 L375,665 L330,672 L285,652 L252,618 L248,585Z' },
-  { id:'Kerala',             ab:'KL',    d:'M190,555 L265,568 L278,612 L262,660 L228,675 L195,655 L175,620 L170,582Z' },
-  { id:'Assam',              ab:'AS',    d:'M598,162 L658,155 L675,175 L648,195 L605,200 L588,182Z' },
-  { id:'Arunachal Pradesh',  ab:'AR',    d:'M600,118 L682,112 L700,135 L672,155 L618,158 L598,140Z' },
-  { id:'Nagaland',           ab:'NL',    d:'M668,168 L695,162 L700,182 L678,188 L665,178Z' },
-  { id:'Manipur',            ab:'MN',    d:'M678,192 L700,185 L708,208 L688,215 L674,205Z' },
-  { id:'Mizoram',            ab:'MZ',    d:'M665,218 L688,212 L695,235 L672,240 L658,230Z' },
-  { id:'Meghalaya',          ab:'ML',    d:'M598,198 L642,192 L652,212 L622,220 L595,212Z' },
-  { id:'Tripura',            ab:'TR',    d:'M645,218 L665,214 L668,232 L648,236 L640,225Z' },
+  { id: 'Jammu & Kashmir', label: ['Jammu and', 'Kashmir'], cx: 256, cy: 84, d: 'M215 48 L255 32 L296 38 L325 46 L336 67 L327 87 L301 100 L270 102 L233 92 L214 74 Z' },
+  { id: 'Punjab', label: ['Punjab'], cx: 247, cy: 137, d: 'M210 110 L253 104 L271 122 L264 151 L242 164 L213 153 L202 130 Z' },
+  { id: 'Himachal Pradesh', label: ['Himachal', 'Pradesh'], cx: 286, cy: 128, d: 'M257 102 L303 102 L321 118 L315 144 L292 156 L266 146 L258 124 Z' },
+  { id: 'Uttarakhand', label: ['Uttarakhand'], cx: 351, cy: 138, d: 'M318 118 L366 112 L388 129 L380 154 L350 166 L324 151 Z' },
+  { id: 'Haryana', label: ['Haryana'], cx: 270, cy: 176, d: 'M236 154 L282 150 L297 171 L289 198 L259 208 L235 189 Z' },
+  { id: 'Delhi', label: ['Delhi'], cx: 303, cy: 188, d: 'M295 181 L311 180 L317 194 L302 201 L292 192 Z' },
+  { id: 'Rajasthan', label: ['Rajasthan'], cx: 194, cy: 260, d: 'M124 178 L279 172 L299 202 L294 273 L266 323 L212 341 L161 331 L119 295 L104 242 Z' },
+  { id: 'Uttar Pradesh', label: ['Uttar', 'Pradesh'], cx: 382, cy: 231, d: 'M294 183 L406 173 L470 191 L490 222 L481 260 L433 279 L356 286 L308 260 L287 230 Z' },
+  { id: 'Bihar', label: ['Bihar'], cx: 491, cy: 238, d: 'M470 192 L530 191 L556 208 L551 240 L522 260 L483 256 L461 234 Z' },
+  { id: 'Sikkim', label: ['Sikkim'], cx: 570, cy: 226, d: 'M563 213 L576 211 L582 222 L572 229 L561 223 Z' },
+  { id: 'West Bengal', label: ['West', 'Bengal'], cx: 562, cy: 315, d: 'M552 239 L591 228 L614 249 L611 302 L592 336 L566 351 L541 327 L534 279 Z' },
+  { id: 'Jharkhand', label: ['Jharkhand'], cx: 487, cy: 308, d: 'M456 259 L520 258 L541 277 L535 314 L505 334 L468 329 L449 303 Z' },
+  { id: 'Odisha', label: ['Odisha'], cx: 512, cy: 383, d: 'M483 334 L543 328 L568 352 L562 404 L530 432 L492 429 L469 396 L471 359 Z' },
+  { id: 'Chhattisgarh', label: ['Chhattisgarh'], cx: 400, cy: 350, d: 'M334 287 L460 279 L480 309 L473 374 L439 407 L392 412 L353 385 L337 336 Z' },
+  { id: 'Madhya Pradesh', label: ['Madhya', 'Pradesh'], cx: 305, cy: 338, d: 'M210 304 L347 294 L375 320 L367 378 L332 410 L276 415 L227 397 L196 365 L190 329 Z' },
+  { id: 'Gujarat', label: ['Gujarat'], cx: 127, cy: 355, d: 'M68 266 L176 260 L202 307 L199 366 L174 418 L135 439 L96 433 L64 393 L54 333 Z' },
+  { id: 'Maharashtra', label: ['Maharashtra'], cx: 288, cy: 494, d: 'M193 417 L374 410 L399 449 L392 512 L351 553 L289 566 L234 556 L193 523 L175 474 Z' },
+  { id: 'Goa', label: ['Goa'], cx: 197, cy: 548, d: 'M188 537 L202 535 L208 547 L196 553 L186 546 Z' },
+  { id: 'Telangana', label: ['Telangana'], cx: 394, cy: 470, d: 'M360 408 L468 403 L488 431 L480 476 L444 494 L392 489 L359 462 Z' },
+  { id: 'Andhra Pradesh', label: ['Andhra', 'Pradesh'], cx: 470, cy: 539, d: 'M434 429 L566 419 L592 459 L584 528 L549 572 L499 588 L454 574 L422 534 L420 476 Z' },
+  { id: 'Karnataka', label: ['Karnataka'], cx: 282, cy: 624, d: 'M183 559 L350 552 L373 596 L368 658 L337 702 L291 714 L243 704 L204 675 L184 627 Z' },
+  { id: 'Kerala', label: ['Kerala'], cx: 222, cy: 742, d: 'M198 703 L255 710 L246 760 L233 814 L214 842 L190 837 L173 801 L179 744 Z' },
+  { id: 'Tamil Nadu', label: ['Tamil Nadu'], cx: 361, cy: 760, d: 'M284 709 L404 699 L435 735 L428 799 L393 844 L347 851 L307 832 L283 787 L278 738 Z' },
+  { id: 'Assam', label: ['Assam'], cx: 647, cy: 257, d: 'M615 234 L686 228 L713 245 L705 265 L664 277 L627 268 L611 248 Z' },
+  { id: 'Arunachal Pradesh', label: ['Arunachal', 'Pradesh'], cx: 683, cy: 205, d: 'M603 180 L691 174 L733 193 L728 221 L688 236 L646 230 L605 210 Z' },
+  { id: 'Meghalaya', label: ['Meghalaya'], cx: 624, cy: 293, d: 'M596 278 L645 275 L655 289 L644 304 L610 303 L595 291 Z' },
+  { id: 'Nagaland', label: ['Nagaland'], cx: 696, cy: 279, d: 'M682 262 L704 258 L710 279 L694 290 L680 281 Z' },
+  { id: 'Manipur', label: ['Manipur'], cx: 706, cy: 322, d: 'M693 295 L715 292 L721 321 L706 336 L690 326 Z' },
+  { id: 'Mizoram', label: ['Mizoram'], cx: 680, cy: 367, d: 'M666 340 L688 335 L696 372 L679 389 L663 377 Z' },
+  { id: 'Tripura', label: ['Tripura'], cx: 654, cy: 338, d: 'M645 315 L661 314 L666 340 L651 349 L640 337 Z' },
 ]
 
-const getStateColor = (total, max, okRate) => {
-  if (!total || total === 0) return { fill: 'rgba(255,255,255,0.04)', stroke: 'rgba(0,180,255,0.1)' }
-  const t = Math.min(total / max, 1)
-  const r = parseFloat(okRate || 0)
-  if (r >= 75) {
-    const g = Math.round(130 + t * 122), b = Math.round(80 + t * 42)
-    return { fill: `rgba(0,${g},${b},${0.3 + t * 0.5})`, stroke: `rgba(0,232,122,${0.3 + t * 0.4})` }
-  } else if (r >= 50) {
-    const rr = Math.round(180 + t * 75), gg = Math.round(100 + t * 49)
-    return { fill: `rgba(${rr},${gg},0,${0.3 + t * 0.5})`, stroke: `rgba(255,149,0,${0.3 + t * 0.4})` }
-  } else {
-    const rr = Math.round(150 + t * 105)
-    return { fill: `rgba(${rr},40,40,${0.3 + t * 0.5})`, stroke: `rgba(255,77,77,${0.3 + t * 0.4})` }
-  }
+function getFill(total, max) {
+  if (!total) return '#475569'
+  const ratio = Math.max(0.22, total / max)
+  return `rgba(56, 189, 248, ${Math.min(0.96, ratio + 0.18)})`
 }
 
-export default function IndiaMap({ stateData = [], cityData = null, selectedState = null, onStateClick, onBack, loading }) {
+export default function IndiaMap({ states = [], activeState, onStateClick }) {
   const [hovered, setHovered] = useState(null)
-  const [tip, setTip] = useState({ x: 0, y: 0 })
-
-  const stateMap = {}
-  stateData.forEach(s => { stateMap[s.state] = s })
-  const maxTotal = stateData.length > 0 ? Math.max(...stateData.map(s => s.total), 1) : 1
-
-  if (loading) return (
-    <Box display="flex" justifyContent="center" alignItems="center" height={480} flexDirection="column" gap={2}>
-      <CircularProgress sx={{ color: '#00b4ff' }} size={32} />
-      <Typography sx={{ color: 'rgba(120,160,210,0.4)', fontSize: '0.75rem' }}>Loading map data...</Typography>
-    </Box>
-  )
+  const stateMap = Object.fromEntries(states.map((item) => [item.state, item]))
+  const max = Math.max(...states.map((item) => item.total), 1)
 
   return (
-    <Box sx={{ position: 'relative' }}>
-      {/* Header bar */}
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
-        <Box display="flex" alignItems="center" gap={1.5}>
-          {selectedState && (
-            <Box onClick={onBack} sx={{
-              display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer',
-              px: 1.2, py: 0.4, borderRadius: '7px',
-              border: '1px solid rgba(0,180,255,0.22)', color: '#00b4ff',
-              fontSize: '0.72rem', fontWeight: 600, transition: 'all 0.2s',
-              '&:hover': { background: 'rgba(0,180,255,0.08)' }
-            }}>
-              <ArrowBackIcon sx={{ fontSize: 13 }} /> Back to India
-            </Box>
-          )}
-          <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: '#eaf3ff' }}>
-              {selectedState ? `${selectedState} — Cities` : 'India PCB Heatmap'}
-            </Typography>
-            <Typography sx={{ fontSize: '0.6rem', color: 'rgba(120,160,210,0.4)' }}>
-              {selectedState ? 'PCB counts by service city' : 'Hover state for details · click to drill into cities'}
-            </Typography>
-          </Box>
-        </Box>
-        {/* Legend */}
-        <Box display="flex" gap={1.2} alignItems="center">
-          {[['rgba(0,210,120,0.7)','≥75% OK'],['rgba(220,140,0,0.7)','50–74%'],['rgba(200,60,60,0.7)','<50%'],['rgba(255,255,255,0.07)','No data']].map(([c,l]) => (
-            <Box key={l} display="flex" alignItems="center" gap={0.4}>
-              <Box sx={{ width: 9, height: 9, borderRadius: '2px', background: c }} />
-              <Typography sx={{ fontSize: '0.58rem', color: 'rgba(120,160,210,0.5)' }}>{l}</Typography>
-            </Box>
-          ))}
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+        <Box>
+          <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '1rem' }}>India PCB Distribution</Typography>
+          <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.4 }}>State names and PCB counts are drawn directly on the map. Brighter blue means more PCB volume.</Typography>
         </Box>
       </Box>
 
-      {!selectedState ? (
-        /* ── INDIA MAP SVG ── */
-        <Box sx={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 40%, rgba(0,60,120,0.15) 0%, transparent 70%)' }}>
-          <svg
-            viewBox="60 15 700 700"
-            style={{ width: '100%', height: '480px', display: 'block' }}
-            onMouseLeave={() => setHovered(null)}>
-            <defs>
-              <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-              <radialGradient id="bgGrad" cx="50%" cy="45%" r="60%">
-                <stop offset="0%" stopColor="rgba(0,80,160,0.08)" />
-                <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-              </radialGradient>
-            </defs>
-            <rect x="0" y="0" width="800" height="900" fill="url(#bgGrad)" />
-
-            {INDIA_STATES.map(state => {
-              const info = stateMap[state.id]
-              const hasData = info && info.total > 0
-              const isHov = hovered === state.id
-              const { fill, stroke } = getStateColor(info?.total, maxTotal, info?.ok_rate)
-
-              return (
-                <g key={state.id}
-                  onMouseMove={e => {
-                    const r = e.currentTarget.closest('svg').getBoundingClientRect()
-                    setTip({ x: e.clientX - r.left, y: e.clientY - r.top })
-                    setHovered(state.id)
-                  }}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => hasData && onStateClick(state.id)}
-                  style={{ cursor: hasData ? 'pointer' : 'default' }}>
-                  <path
-                    d={state.d}
-                    fill={fill}
-                    stroke={isHov ? '#00b4ff' : stroke}
-                    strokeWidth={isHov ? 2 : 1}
-                    strokeLinejoin="round"
-                    style={{ transition: 'all 0.15s', filter: isHov ? 'url(#glow)' : 'none', opacity: isHov ? 1 : 0.92 }}
-                  />
-                  {/* Label */}
-                  <text
-                    x={parseFloat(state.d.split(' ')[1]) + (parseFloat(state.d.split(' ')[state.d.split(' ').length - 4]) - parseFloat(state.d.split(' ')[1])) / 2}
-                    y={parseFloat(state.d.split(' ')[2]) + (parseFloat(state.d.split(' ')[state.d.split(' ').length - 3]) - parseFloat(state.d.split(' ')[2])) / 2}
-                    textAnchor="middle" dominantBaseline="central"
-                    fontSize={hasData ? 9 : 7}
-                    fontWeight={hasData ? 700 : 400}
-                    fill={hasData ? 'rgba(230,245,255,0.92)' : 'rgba(150,180,220,0.25)'}
-                    style={{ pointerEvents: 'none', fontFamily: 'DM Sans, sans-serif', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                    {state.ab}
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
-
-          {/* Tooltip */}
-          {hovered && stateMap[hovered] && (() => {
-            const d = stateMap[hovered]
-            const r = parseFloat(d.ok_rate || 0)
-            const rc = r >= 75 ? '#00e87a' : r >= 50 ? '#ff9500' : '#ff4d4d'
-            const left = Math.min(tip.x + 14, 550)
-            const top = Math.max(tip.y - 90, 10)
+      <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, background: 'radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 24%), linear-gradient(180deg, #08111f 0%, #10233f 100%)', minHeight: 740, border: '1px solid rgba(56, 189, 248, 0.14)' }}>
+        <svg viewBox="28 20 740 860" style={{ width: '100%', height: '740px', display: 'block' }}>
+          {INDIA_STATES.map((state) => {
+            const metrics = stateMap[state.id]
+            const active = activeState === state.id
+            const hovering = hovered === state.id
             return (
-              <Box sx={{ position: 'absolute', left, top, pointerEvents: 'none', zIndex: 200,
-                background: 'rgba(6,12,24,0.96)', border: '1px solid rgba(0,180,255,0.25)',
-                borderRadius: '12px', p: 1.8, minWidth: 175,
-                boxShadow: '0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,180,255,0.08)',
-                backdropFilter: 'blur(16px)',
-                animation: 'fadeIn 0.12s ease',
-                '@keyframes fadeIn': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } }
-              }}>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#eaf3ff', mb: 1.2 }}>{hovered}</Typography>
-                {[
-                  { l: 'Total PCBs', v: Number(d.total).toLocaleString(), c: '#00b4ff' },
-                  { l: 'Repaired OK', v: Number(d.ok).toLocaleString(), c: '#00e87a' },
-                  { l: 'No Fault Found', v: Number(d.nff).toLocaleString(), c: '#ff9500' },
-                  { l: 'OK Rate', v: `${d.ok_rate}%`, c: rc },
-                ].map(row => (
-                  <Box key={row.l} display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                    <Typography sx={{ fontSize: '0.65rem', color: 'rgba(120,160,210,0.55)' }}>{row.l}</Typography>
-                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: row.c, fontFamily: "'DM Mono', monospace" }}>{row.v}</Typography>
-                  </Box>
-                ))}
-                <Box sx={{ mt: 1, pt: 0.8, borderTop: '1px solid rgba(0,180,255,0.1)', textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: '0.6rem', color: 'rgba(0,180,255,0.7)' }}>Click to see cities →</Typography>
-                </Box>
-              </Box>
+              <g key={state.id} onMouseEnter={() => setHovered(state.id)} onMouseLeave={() => setHovered(null)} onClick={() => metrics && onStateClick?.(state.id)} style={{ cursor: metrics ? 'pointer' : 'default' }}>
+                <path d={state.d} fill={getFill(metrics?.total || 0, max)} stroke={active || hovering ? '#e2e8f0' : 'rgba(226,232,240,0.35)'} strokeWidth={active || hovering ? 2.2 : 1.15} strokeLinejoin="round" style={{ transition: 'all 0.16s ease' }} />
+                <text x={state.cx} y={state.cy} textAnchor="middle" fill={metrics ? '#e2e8f0' : '#cbd5e1'} fontSize="10" fontWeight="700" style={{ pointerEvents: 'none' }}>
+                  {state.label.map((line, index) => (
+                    <tspan key={`${state.id}-${line}`} x={state.cx} dy={index === 0 ? 0 : 12}>{line}</tspan>
+                  ))}
+                </text>
+                {metrics ? <text x={state.cx} y={state.cy + state.label.length * 12 + 10} textAnchor="middle" fill="#7dd3fc" fontSize="10" fontWeight="700" style={{ pointerEvents: 'none' }}>{metrics.total}</text> : null}
+              </g>
             )
-          })()}
+          })}
+        </svg>
 
-          {stateData.length === 0 && (
-            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 1.5 }}>
-              <Typography sx={{ fontSize: '2.5rem', opacity: 0.2 }}>🗺️</Typography>
-              <Typography sx={{ fontSize: '0.82rem', color: 'rgba(120,160,210,0.3)', textAlign: 'center' }}>Upload Excel data to activate the map</Typography>
-            </Box>
-          )}
-        </Box>
-      ) : (
-        /* ── CITY DRILL-DOWN ── */
-        <Box sx={{ animation: 'fadeIn 0.3s ease', '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
-          {cityData?.cities?.length > 0 ? (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1.5, maxHeight: 455, overflowY: 'auto', pr: 0.5 }}>
-              {cityData.cities.map((city, i) => {
-                const okR = city.total > 0 ? ((city.ok / city.total) * 100).toFixed(1) : 0
-                const rc = parseFloat(okR) >= 75 ? '#00e87a' : parseFloat(okR) >= 50 ? '#ff9500' : '#ff4d4d'
-                return (
-                  <Box key={city.city} sx={{
-                    p: 1.8, borderRadius: '12px',
-                    background: 'linear-gradient(145deg, rgba(13,22,38,0.9), rgba(17,30,53,0.9))',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    backdropFilter: 'blur(8px)',
-                    animation: `fadeUp 0.3s ease ${i * 0.04}s both`,
-                    '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(10px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
-                    transition: 'all 0.2s',
-                    '&:hover': { border: '1px solid rgba(0,180,255,0.22)', transform: 'translateY(-2px)', boxShadow: '0 8px 24px rgba(0,180,255,0.1)' }
-                  }}>
-                    <Box display="flex" alignItems="center" gap={0.7} mb={0.8}>
-                      <LocationOnIcon sx={{ color: '#00b4ff', fontSize: 12 }} />
-                      <Typography sx={{ fontSize: '0.76rem', fontWeight: 700, color: '#eaf3ff' }}>{city.city}</Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: '1.3rem', fontWeight: 800, color: '#00b4ff', fontFamily: "'DM Mono',monospace", lineHeight: 1, mb: 0.6 }}>
-                      {city.total.toLocaleString()}
-                    </Typography>
-                    <Box display="flex" justifyContent="space-between" mb={0.6}>
-                      <Typography sx={{ fontSize: '0.6rem', color: '#00e87a', fontWeight: 600 }}>OK {city.ok}</Typography>
-                      <Typography sx={{ fontSize: '0.6rem', color: '#ff9500', fontWeight: 600 }}>NFF {city.nff}</Typography>
-                    </Box>
-                    <Box sx={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', mb: 0.4 }}>
-                      <Box sx={{ height: '100%', width: `${okR}%`, background: `linear-gradient(90deg, ${rc}, ${rc}88)`, borderRadius: 2, transition: 'width 1.2s ease' }} />
-                    </Box>
-                    <Typography sx={{ fontSize: '0.6rem', color: rc, fontWeight: 700 }}>{okR}% OK Rate</Typography>
-                  </Box>
-                )
-              })}
-            </Box>
-          ) : (
-            <Box display="flex" alignItems="center" justifyContent="center" height={300} flexDirection="column" gap={1}>
-              <Typography sx={{ fontSize: '2rem', opacity: 0.2 }}>🏙️</Typography>
-              <Typography sx={{ color: 'rgba(120,160,210,0.3)', fontSize: '0.8rem' }}>No city data for {selectedState}</Typography>
-            </Box>
-          )}
-        </Box>
-      )}
+        {hovered && stateMap[hovered] ? (
+          <Box sx={{ position: 'absolute', top: 18, right: 18, width: 220, p: 1.7, borderRadius: 3, background: 'rgba(8, 17, 31, 0.96)', border: '1px solid rgba(125, 211, 252, 0.18)', boxShadow: '0 18px 45px rgba(2, 8, 23, 0.34)' }}>
+            <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.9rem' }}>{hovered}</Typography>
+            <Typography sx={{ color: '#e2e8f0', fontSize: '0.74rem', mt: 0.6 }}>PCB Count: {stateMap[hovered].total}</Typography>
+            <Typography sx={{ color: '#22c55e', fontSize: '0.74rem', mt: 0.35 }}>OK: {stateMap[hovered].ok}</Typography>
+            <Typography sx={{ color: '#f59e0b', fontSize: '0.74rem', mt: 0.25 }}>NFF: {stateMap[hovered].nff}</Typography>
+          </Box>
+        ) : null}
+      </Box>
     </Box>
   )
 }
