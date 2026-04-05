@@ -148,6 +148,14 @@ export default function MapAnalyticsPage() {
           <Box sx={{ p: { xs: 2.2, md: 3 }, borderRadius: 5, background: 'radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 30%), radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.12), transparent 22%), linear-gradient(180deg, #0f172a 0%, #08111f 100%)', border: PANEL_BORDER, mb: 2.5 }}>
             <Typography sx={{ color: '#f8fafc', fontSize: { xs: '1.35rem', md: '1.8rem' }, fontWeight: 800 }}>India Map Analytics</Typography>
             <Typography sx={{ color: '#94a3b8', fontSize: '0.86rem', mt: 0.7, maxWidth: 760 }}>Political-map style layout with state names on the map, density coloring, and a strict India to state to city to part code to components drill-down path.</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+              <Box sx={{ px: 1.1, py: 0.55, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(167, 139, 250, 0.12)', color: '#ddd6fe', fontSize: '0.72rem' }}>
+                Geo-mapped records only
+              </Box>
+              <Box sx={{ px: 1.1, py: 0.55, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd', fontSize: '0.72rem' }}>
+                {formatNumber(mapData?.totalMapped)} mapped rows
+              </Box>
+            </Stack>
           </Box>
 
           {error ? <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3 }}>{error}</Alert> : null}

@@ -178,6 +178,7 @@ export default function PCBDetailPage() {
     nff_count: Number(item.nff_count || 0),
     wip_count: Number(item.wip_count || 0),
   }))
+  const wipFocus = data?.wip_focus || null
   const okCount = statusBreakdown.find((item) => item.status === 'OK')?.count || 0
   const nffCount = statusBreakdown.find((item) => item.status === 'NFF')?.count || 0
   const wipCount = statusBreakdown.find((item) => item.status === 'WIP')?.count || 0
@@ -321,6 +322,46 @@ export default function PCBDetailPage() {
                   </Box>
                 </Grid>
               </Grid>
+
+              <Box sx={{ ...cardStyle, mb: 2 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#eaf3ff', mb: 0.2 }}>WIP Intelligence</Typography>
+                <Typography sx={{ fontSize: '0.64rem', color: 'rgba(120,160,210,0.4)', mb: 2 }}>
+                  Pending records, missing component capture, and cities contributing most to incomplete repair analysis.
+                </Typography>
+                <Grid container spacing={1.5}>
+                  {[
+                    { label: 'Total WIP', value: wipFocus?.total_wip || 0, color: '#a78bfa' },
+                    { label: 'Missing Components', value: wipFocus?.missing_component_rows || 0, color: '#f59e0b' },
+                    { label: 'Missing Analysis', value: wipFocus?.missing_analysis_rows || 0, color: '#38bdf8' },
+                    { label: 'Total Records', value: wipFocus?.total_records || data?.total || 0, color: '#00e87a' },
+                  ].map((item) => (
+                    <Grid item xs={6} md={3} key={item.label}>
+                      <Box sx={{ p: 1.25, borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <Typography sx={{ color: item.color, fontWeight: 800, fontSize: '1rem', fontFamily: "'JetBrains Mono'" }}>{Number(item.value).toLocaleString('en-IN')}</Typography>
+                        <Typography sx={{ color: 'rgba(160,200,255,0.55)', fontSize: '0.66rem', mt: 0.3 }}>{item.label}</Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ color: '#eaf3ff', fontWeight: 700, fontSize: '0.78rem', mb: 1 }}>Top WIP Cities</Typography>
+                  {(wipFocus?.top_wip_cities || []).length ? (
+                    <Grid container spacing={1.1}>
+                      {wipFocus.top_wip_cities.map((item) => (
+                        <Grid item xs={12} md={6} key={item.branch}>
+                          <Box sx={{ p: 1.1, borderRadius: '10px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.18)' }}>
+                            <Typography sx={{ color: '#e9d5ff', fontWeight: 700, fontSize: '0.76rem' }}>{item.branch}</Typography>
+                            <Typography sx={{ color: 'rgba(233,213,255,0.72)', fontSize: '0.68rem', mt: 0.25 }}>{Number(item.total_wip || 0).toLocaleString('en-IN')} pending records</Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Typography sx={{ color: 'rgba(160,200,255,0.45)', fontSize: '0.72rem' }}>No city-specific WIP trend was found for this part code.</Typography>
+                  )}
+                </Box>
+              </Box>
 
               <Box sx={cardStyle}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.2}>

@@ -1,8 +1,13 @@
 import pool from '../../lib/db'
 import {
+  buildDashboardAlerts,
+  buildDashboardInsights,
+  buildDataHealth,
   buildHierarchy,
+  queryAnalyticsTotals,
   queryComponents,
   queryLastUpload,
+  queryPartCodeSummary,
   queryRepairRows,
   queryTrends,
 } from '../../lib/analytics'
@@ -16,25 +21,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [repairRows, trendRows, componentRows, lastUpload] = await Promise.all([
+    const [repairRows, trendRows, componentRows, lastUpload, totals, partCodeRows] = await Promise.all([
       queryRepairRows(pool, filters),
       queryTrends(pool, filters),
       queryComponents(pool, filters, 10),
       queryLastUpload(pool),
+      queryAnalyticsTotals(pool, filters),
+      queryPartCodeSummary(pool, filters, 12),
     ])
 
     const hierarchy = buildHierarchy(repairRows)
-    const totalEntries = hierarchy.partCodes.reduce((sum, item) => sum + item.total, 0)
-    const okCount = hierarchy.partCodes.reduce((sum, item) => sum + item.ok, 0)
-    const nffCount = hierarchy.partCodes.reduce((sum, item) => sum + item.nff, 0)
-    const wipCount = hierarchy.partCodes.reduce((sum, item) => sum + item.wip, 0)
+    const mappedTotal = hierarchy.partCodes.reduce((sum, item) => sum + item.total, 0)
+    const analyticsTotal = Number(totals.total_records || 0)
+    const okCount = Number(totals.ok_count || 0)
+    const nffCount = Number(totals.nff_count || 0)
+    const wipCount = Number(totals.wip_count || 0)
     const topState = hierarchy.states[0] || null
     const topCity = hierarchy.cities[0] || null
+    const uploadedTotal = Number(lastUpload?.total_rows || analyticsTotal)
+    const ignoredTotal = Math.max(uploadedTotal - analyticsTotal, 0)
+    const unmappedTotal = Math.max(analyticsTotal - mappedTotal, 0)
+    const alerts = buildDashboardAlerts({ totals, mappedTotal, lastUpload })
+    const insights = buildDashboardInsights({
+      hierarchy,
+      components: componentRows,
+      partCodes: partCodeRows,
+      totals,
+    })
+    const health = buildDataHealth({ totals, mappedTotal, lastUpload })
 
     res.json({
       kpis: {
-        totalPcbs: hierarchy.partCodes.length,
-        totalEntries,
+        uniquePartCodes: Number(totals.unique_part_codes || 0),
+        totalEntries: analyticsTotal,
         okCount,
         nffCount,
         wipCount,
@@ -53,11 +72,19 @@ export default async function handler(req, res) {
       components: componentRows,
       topStates: hierarchy.states.slice(0, 8),
       topCities: hierarchy.cities.slice(0, 8),
-      topPartCodes: hierarchy.partCodes.slice(0, 12),
+      topPartCodes: partCodeRows,
       filters: {
-        partCodes: hierarchy.partCodes.map((item) => item.partCode),
+        partCodes: partCodeRows.map((item) => item.partCode),
       },
       lastUpload,
+      transparency: {
+        uploadedTotal,
+        analyticsTotal,
+        mappedTotal,
+        unmappedTotal,
+        ignoredTotal,
+        mappedCoverage: analyticsTotal > 0 ? Number(((mappedTotal / analyticsTotal) * 100).toFixed(1)) : 0,
+      },
       dataQuality: lastUpload
         ? {
             autoFixed: Number(lastUpload.auto_fixed || 0) + Number(lastUpload.fuzzy_fixed || 0),
@@ -66,6 +93,9 @@ export default async function handler(req, res) {
             originalName: lastUpload.original_name,
           }
         : null,
+      alerts,
+      insights,
+      health,
     })
   } catch (error) {
     console.error('Dashboard overview error:', error)

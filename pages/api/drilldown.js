@@ -2,6 +2,7 @@ import pool from '../../lib/db'
 import {
   buildHierarchy,
   queryPartCodeDetail,
+  queryPartCodeSummary,
   queryRepairRows,
 } from '../../lib/analytics'
 
@@ -15,22 +16,21 @@ export default async function handler(req, res) {
   const status = req.query.status
 
   try {
-    const repairRows = await queryRepairRows(pool, {
-      status,
-      partCode: level === 'dashboard' ? undefined : undefined,
-    })
+    const repairRows = await queryRepairRows(pool, { status })
     const hierarchy = buildHierarchy(repairRows)
+    const allPartCodes = level === 'part-code' ? await queryPartCodeSummary(pool, {}, 200) : null
 
     if (level === 'dashboard') {
+      const partCodes = await queryPartCodeSummary(pool, { status }, 20)
       return res.json({
         level,
         title: 'Part Code View',
-        items: hierarchy.partCodes.slice(0, 20),
+        items: partCodes,
       })
     }
 
     const stateEntry = hierarchy.states.find((item) => item.state === stateName)
-    if (!stateEntry) {
+    if (!stateEntry && level !== 'part-code') {
       return res.status(404).json({ error: 'State not found', level })
     }
 
@@ -43,8 +43,8 @@ export default async function handler(req, res) {
       })
     }
 
-    const cityEntry = stateEntry.cities.find((item) => item.city === cityName)
-    if (!cityEntry) {
+    const cityEntry = stateEntry?.cities?.find((item) => item.city === cityName)
+    if (!cityEntry && level !== 'part-code') {
       return res.status(404).json({ error: 'City not found', level })
     }
 
@@ -57,14 +57,16 @@ export default async function handler(req, res) {
       })
     }
 
-    const partEntry = cityEntry.partCodes.find((item) => item.partCode === String(partCode))
+    const partEntry =
+      cityEntry?.partCodes?.find((item) => item.partCode === String(partCode))
+      || allPartCodes?.find((item) => item.partCode === String(partCode))
     if (!partEntry) {
       return res.status(404).json({ error: 'Part code not found', level })
     }
 
     const partDetail = await queryPartCodeDetail(pool, {
       partCode,
-      city: cityName,
+      city: cityEntry ? cityName : undefined,
     })
 
     return res.json({
@@ -72,6 +74,8 @@ export default async function handler(req, res) {
       title: `Part Code ${partCode}`,
       summary: partEntry,
       detail: partDetail,
+      state: stateEntry?.state,
+      city: cityEntry?.city,
     })
   } catch (error) {
     console.error('Drilldown error:', error)

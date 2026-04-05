@@ -98,6 +98,82 @@ function DataQualityCard({ quality }) {
   )
 }
 
+function TransparencyCard({ transparency }) {
+  if (!transparency) return null
+
+  const metrics = [
+    { label: 'Total Uploaded', value: transparency.uploadedTotal, color: '#38bdf8' },
+    { label: 'Analytics Records', value: transparency.analyticsTotal, color: '#22c55e' },
+    { label: 'Geo-Mapped', value: transparency.mappedTotal, color: '#a78bfa' },
+    { label: 'Unmapped', value: transparency.unmappedTotal, color: '#f59e0b' },
+  ]
+
+  return (
+    <Box sx={{ p: 2.2, borderRadius: 4, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)', border: PANEL_BORDER }}>
+      <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.96rem' }}>Data Transparency</Typography>
+      <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.35, mb: 1.5 }}>
+        Uploaded totals stay separate from cleaned analytics records and geo-mapped records.
+      </Typography>
+      <Grid container spacing={1.2}>
+        {metrics.map((item) => (
+          <Grid item xs={6} md={3} key={item.label}>
+            <Box sx={{ p: 1.3, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.62)' }}>
+              <Typography sx={{ color: item.color, fontWeight: 800, fontSize: '1rem' }}>{formatNumber(item.value)}</Typography>
+              <Typography sx={{ color: '#94a3b8', fontSize: '0.72rem', mt: 0.35 }}>{item.label}</Typography>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.4 }}>
+        <Chip label={`${transparency.mappedCoverage || 0}% map coverage`} sx={{ background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd' }} />
+        <Chip label={`${formatNumber(transparency.ignoredTotal)} ignored / rejected`} sx={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fde68a' }} />
+      </Stack>
+    </Box>
+  )
+}
+
+function HealthCard({ health }) {
+  if (!health) return null
+
+  const toneColor = health.tone === 'healthy' ? '#22c55e' : health.tone === 'watch' ? '#f59e0b' : '#ef4444'
+
+  return (
+    <Box sx={{ p: 2.2, borderRadius: 4, background: 'linear-gradient(180deg, rgba(13,20,34,0.96) 0%, rgba(9,14,25,0.96) 100%)', border: PANEL_BORDER }}>
+      <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.96rem' }}>Data Health</Typography>
+      <Typography sx={{ color: '#94a3b8', fontSize: '0.76rem', mt: 0.35, mb: 1.4 }}>Score is based on WIP load, geo coverage, and flagged upload values.</Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+        <Box>
+          <Typography sx={{ color: toneColor, fontWeight: 800, fontSize: '1.7rem' }}>{health.score}</Typography>
+          <Typography sx={{ color: '#94a3b8', fontSize: '0.72rem' }}>Confidence score</Typography>
+        </Box>
+        <Stack spacing={0.5} sx={{ minWidth: 180 }}>
+          <Typography sx={{ color: '#cbd5e1', fontSize: '0.76rem' }}>WIP: {health.wipPct}%</Typography>
+          <Typography sx={{ color: '#cbd5e1', fontSize: '0.76rem' }}>Mapped: {health.mappedPct}%</Typography>
+          <Typography sx={{ color: '#cbd5e1', fontSize: '0.76rem' }}>Flagged: {health.flaggedPct}%</Typography>
+        </Stack>
+      </Box>
+      <Typography sx={{ color: toneColor, fontSize: '0.78rem', fontWeight: 600, mt: 1.4 }}>{health.message}</Typography>
+    </Box>
+  )
+}
+
+function InsightsCard({ insights }) {
+  if (!insights?.length) return null
+  return (
+    <SectionCard title="Auto Insights" subtitle="Patterns derived automatically from current analytics and mapped geography." minHeight={260}>
+      <Stack spacing={1.05}>
+        {insights.map((item) => (
+          <Box key={item.label} sx={{ p: 1.3, borderRadius: 3, border: PANEL_BORDER, background: 'rgba(15, 23, 42, 0.58)' }}>
+            <Typography sx={{ color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>{item.label}</Typography>
+            <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.9rem', mt: 0.55 }}>{item.value}</Typography>
+            <Typography sx={{ color: '#cbd5e1', fontSize: '0.74rem', mt: 0.5 }}>{item.detail}</Typography>
+          </Box>
+        ))}
+      </Stack>
+    </SectionCard>
+  )
+}
+
 function KpiCard({ title, value, subtitle, accent, icon: Icon, onClick }) {
   return (
     <Box
@@ -306,7 +382,14 @@ export default function DashboardPage() {
 
   const openState = (state) => state && openDetail({ level: 'state', state })
   const openCity = (city) => city && openDetail({ level: 'city', state: detail?.state || overview?.kpis?.topState, city })
-  const openPartCode = (partCode) => partCode && openDetail({ level: 'part-code', state: detail?.state || overview?.kpis?.topState, city: detail?.city || overview?.topCities?.[0]?.city, partCode })
+  const openPartCode = (partCode) => {
+    if (!partCode) return
+    if (!detail?.city) {
+      openDetail({ level: 'part-code', partCode })
+      return
+    }
+    openDetail({ level: 'part-code', state: detail?.state || overview?.kpis?.topState, city: detail?.city, partCode })
+  }
 
   const trendData = overview?.trends || []
 
@@ -336,22 +419,39 @@ export default function DashboardPage() {
               </Stack>
             </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
-              <Chip label={`${formatNumber(overview?.kpis?.totalEntries)} records`} sx={{ background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd' }} />
-              <Chip label={`${formatNumber(overview?.kpis?.totalCities)} cities`} sx={{ background: 'rgba(34, 197, 94, 0.12)', color: '#bbf7d0' }} />
+              <Chip label={`${formatNumber(overview?.transparency?.uploadedTotal || overview?.kpis?.totalEntries)} uploaded`} sx={{ background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd' }} />
+              <Chip label={`${formatNumber(overview?.transparency?.mappedTotal)} geo-mapped`} sx={{ background: 'rgba(167, 139, 250, 0.14)', color: '#ddd6fe' }} />
+              <Chip label={`${formatNumber(overview?.kpis?.totalCities)} mapped cities`} sx={{ background: 'rgba(34, 197, 94, 0.12)', color: '#bbf7d0' }} />
             </Stack>
           </Box>
 
           {error ? <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3 }}>{error}</Alert> : null}
           {loading ? <LinearProgress sx={{ mb: 2.5, borderRadius: 999 }} /> : null}
+          {(overview?.alerts || []).length ? (
+            <Stack spacing={1.2} sx={{ mb: 2.5 }}>
+              {overview.alerts.map((item) => (
+                <Alert key={`${item.title}-${item.description}`} severity={item.severity || 'info'} sx={{ borderRadius: 3 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.82rem' }}>{item.title}</Typography>
+                  <Typography sx={{ fontSize: '0.76rem', mt: 0.35 }}>{item.description}</Typography>
+                </Alert>
+              ))}
+            </Stack>
+          ) : null}
 
           <Grid container spacing={2}>
             <Grid item xs={12} xl={8}>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
+                  <TransparencyCard transparency={overview?.transparency} />
+                </Grid>
+                <Grid item xs={12} md={6}>
                   <DataQualityCard quality={overview?.dataQuality} />
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <HealthCard health={overview?.health} />
+                </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
-                  <KpiCard title="Total PCBs" value={formatNumber(overview?.kpis?.totalPcbs)} subtitle={`${formatNumber(overview?.kpis?.totalEntries)} total records`} accent="#38bdf8" icon={MemoryOutlinedIcon} onClick={() => openDetail({ level: 'dashboard' })} />
+                  <KpiCard title="Unique Part Codes" value={formatNumber(overview?.kpis?.uniquePartCodes)} subtitle={`${formatNumber(overview?.kpis?.totalEntries)} analytics records`} accent="#38bdf8" icon={MemoryOutlinedIcon} onClick={() => openDetail({ level: 'dashboard' })} />
                 </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
                   <KpiCard title="OK Count" value={formatNumber(overview?.kpis?.okCount)} subtitle="Inspect OK-heavy part codes" accent="#22c55e" icon={TaskAltOutlinedIcon} onClick={() => openDetail({ level: 'dashboard', status: 'OK' })} />
@@ -364,6 +464,9 @@ export default function DashboardPage() {
                 </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
                   <KpiCard title="Top State / City" value={overview?.kpis?.topState || 'No data'} subtitle={overview?.kpis?.topCity || 'No data'} accent="#a78bfa" icon={FmdGoodOutlinedIcon} onClick={() => openState(overview?.kpis?.topState)} />
+                </Grid>
+                <Grid item xs={12}>
+                  <InsightsCard insights={overview?.insights} />
                 </Grid>
 
                 <Grid item xs={12} md={6}>

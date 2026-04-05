@@ -100,6 +100,17 @@ export default function AnalyticsPage() {
             <Box>
               <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, color: '#f8fafc', mb: 0.3 }}>Analytics & Insights</Typography>
               <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>Faster analytics view powered by a single overview API call and fixed chart boundaries.</Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.2 }}>
+                <Box sx={{ px: 1.1, py: 0.55, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(56, 189, 248, 0.12)', color: '#bae6fd', fontSize: '0.72rem' }}>
+                  {formatNumber(data?.transparency?.analyticsTotal)} analytics records
+                </Box>
+                <Box sx={{ px: 1.1, py: 0.55, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(167, 139, 250, 0.12)', color: '#ddd6fe', fontSize: '0.72rem' }}>
+                  {formatNumber(data?.transparency?.mappedTotal)} mapped
+                </Box>
+                <Box sx={{ px: 1.1, py: 0.55, borderRadius: 999, border: PANEL_BORDER, background: 'rgba(245, 158, 11, 0.12)', color: '#fde68a', fontSize: '0.72rem' }}>
+                  {formatNumber(data?.kpis?.wipCount)} WIP
+                </Box>
+              </Stack>
             </Box>
             <Stack direction="row" spacing={1.2} flexWrap="wrap" useFlexGap>
               <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -171,7 +182,7 @@ export default function AnalyticsPage() {
             </Grid>
 
             <Grid item xs={12} md={8}>
-              <Card title="PCB Type Comparison" subtitle="Clickable bars open the selected part code detail page." minHeight={360}>
+              <Card title="PCB Type Comparison" subtitle="Clickable bars open the selected part code detail page and include WIP visibility." minHeight={360}>
                 <Box sx={{ height: 275 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={pcbData} barSize={26} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -181,7 +192,8 @@ export default function AnalyticsPage() {
                       <Tooltip {...tooltipStyle} formatter={(value) => [formatNumber(value), 'Records']} />
                       <Legend wrapperStyle={{ color: '#cbd5e1' }} />
                       <Bar dataKey="ok" name="OK" stackId="a" fill="#22c55e" onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
-                      <Bar dataKey="nff" name="NFF" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
+                      <Bar dataKey="nff" name="NFF" stackId="a" fill="#f59e0b" onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
+                      <Bar dataKey="wip" name="WIP" stackId="a" fill="#a78bfa" radius={[4, 4, 0, 0]} onClick={(entry) => router.push(`/master-table/${entry.partCode}`)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>
