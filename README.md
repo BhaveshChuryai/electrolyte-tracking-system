@@ -208,6 +208,7 @@ electrolyte-dashboard/
 
 *"Charts show no data"*
 → Upload the Excel file first via the Upload page
+and it will be shown after Adding db fileee directly 
 
 *Port already in use*
 bash
